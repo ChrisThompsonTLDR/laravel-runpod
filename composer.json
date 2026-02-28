@@ -1,0 +1,32 @@
+{
+    "name": "chris/laravel-runpod",
+    "description": "Laravel integration for RunPod S3 storage and SoipoServices/runpod",
+    "keywords": ["laravel", "runpod", "s3", "storage"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chris Thompson",
+            "email": "christhompsontldr@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/filesystem": "^11.0|^12.0",
+        "soiposervices/runpod": "^0.4",
+        "league/flysystem-aws-s3-v3": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Chris\\LaravelRunPod\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Chris\\LaravelRunPod\\LaravelRunPodServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable"
+}
