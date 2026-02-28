@@ -1,8 +1,9 @@
 <?php
 
-namespace Chris\LaravelRunPod;
+namespace ChrisThompsonTLDR\LaravelRunPod;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
+use League\Flysystem\UnableToCheckFileExistence;
 
 class RunPodFileManager
 {
@@ -76,9 +77,14 @@ class RunPodFileManager
         $relativePath = $this->relativeToLoadPath($localPath);
         $remotePath = $this->remotePrefix.'/'.$relativePath;
 
-        $shouldSync = ! $this->disk->exists($remotePath);
+        $exists = false;
+        try {
+            $exists = $this->disk->exists($remotePath);
+        } catch (UnableToCheckFileExistence $e) {
+            // S3/network unreachable or misconfigured; assume missing and sync
+        }
 
-        if ($shouldSync) {
+        if (! $exists) {
             $this->disk->put($remotePath, file_get_contents($localPath));
         }
 
@@ -111,6 +117,8 @@ class RunPodFileManager
             return basename($fullPath);
         }
 
-        return ltrim(str_replace($loadPath, '', $fullPath), '/');
+        $resolvedFullPath = realpath($fullPath) ?: $fullPath;
+
+        return ltrim(str_replace($loadPath, '', $resolvedFullPath), '/');
     }
 }

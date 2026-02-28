@@ -1,7 +1,9 @@
 <?php
 
-namespace Chris\LaravelRunPod;
+namespace ChrisThompsonTLDR\LaravelRunPod;
 
+use ChrisThompsonTLDR\LaravelRunPod\Exceptions\RunPodApiKeyNotConfiguredException;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\ServiceProvider;
 
 class LaravelRunPodServiceProvider extends ServiceProvider
@@ -9,6 +11,37 @@ class LaravelRunPodServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/runpod.php', 'runpod');
+
+        $this->app->singleton(RunPodPodClient::class, function () {
+            $apiKey = config('runpod.api_key');
+
+            if ($apiKey === null || $apiKey === '') {
+                throw new RunPodApiKeyNotConfiguredException;
+            }
+
+            return new RunPodPodClient(apiKey: $apiKey);
+        });
+
+        $this->app->singleton(RunPodPodManager::class, function () {
+            return new RunPodPodManager(
+                client: $this->app->make(RunPodPodClient::class),
+                stateFilePath: config('runpod.state_file', storage_path('app/runpod-pod-state.json')),
+                podConfig: config('runpod.pod', [])
+            );
+        });
+
+        $this->app->singleton(RunPod::class, function () {
+            return new RunPod(
+                podManager: $this->app->make(RunPodPodManager::class),
+                client: $this->app->make(RunPodPodClient::class)
+            );
+        });
+
+        $this->app->singleton(RunPodGuardrails::class, function () {
+            return new RunPodGuardrails(
+                client: $this->app->make(RunPodPodClient::class)
+            );
+        });
     }
 
     public function boot(): void
@@ -16,6 +49,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
         $this->registerRunPodDisk();
         $this->registerMacros();
         $this->registerCommands();
+        $this->registerSchedule();
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
@@ -56,7 +90,45 @@ class LaravelRunPodServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 Console\SyncCommand::class,
+                Console\PruneCommand::class,
+                Console\GuardrailsCommand::class,
             ]);
+        }
+    }
+
+    protected function registerSchedule(): void
+    {
+        $instances = config('runpod.instances', []);
+        $allowed = [
+            'everyMinute', 'everyTwoMinutes', 'everyThreeMinutes', 'everyFourMinutes',
+            'everyFiveMinutes', 'everyTenMinutes', 'everyFifteenMinutes', 'everyThirtyMinutes',
+            'hourly',
+        ];
+
+        foreach ($instances as $name => $config) {
+            if (($config['type'] ?? 'pod') !== 'pod') {
+                continue;
+            }
+            $frequency = $config['prune_schedule'] ?? config('runpod.prune_schedule', 'everyFiveMinutes');
+            if (! in_array($frequency, $allowed, true)) {
+                $frequency = 'everyFiveMinutes';
+            }
+            Schedule::command('runpod:prune', ['instance' => $name])->{$frequency}();
+        }
+
+        // Fallback: if no instances, use legacy single prune
+        if (empty($instances)) {
+            $frequency = config('runpod.prune_schedule', 'everyFiveMinutes');
+            if (! in_array($frequency, $allowed, true)) {
+                $frequency = 'everyFiveMinutes';
+            }
+            Schedule::command('runpod:prune')->{$frequency}();
+        }
+
+        // Guardrails: refresh usage cache on schedule
+        $guardrailsSchedule = config('runpod.guardrails.cache_schedule', 'everyFifteenMinutes');
+        if (config('runpod.guardrails.enabled', true) && in_array($guardrailsSchedule, $allowed, true)) {
+            Schedule::command('runpod:guardrails')->{$guardrailsSchedule}();
         }
     }
 }

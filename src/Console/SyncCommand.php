@@ -1,6 +1,6 @@
 <?php
 
-namespace Chris\LaravelRunPod\Console;
+namespace ChrisThompsonTLDR\LaravelRunPod\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;

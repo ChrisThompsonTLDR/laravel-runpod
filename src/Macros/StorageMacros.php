@@ -1,8 +1,8 @@
 <?php
 
-namespace Chris\LaravelRunPod\Macros;
+namespace ChrisThompsonTLDR\LaravelRunPod\Macros;
 
-use Chris\LaravelRunPod\RunPodFileManager;
+use ChrisThompsonTLDR\LaravelRunPod\RunPodFileManager;
 use Illuminate\Support\Facades\Storage;
 
 class StorageMacros
@@ -12,7 +12,7 @@ class StorageMacros
         Storage::macro('runpod', function () {
             return new RunPodFileManager(
                 Storage::disk(config('runpod.disk', 'runpod')),
-                config('runpod.load_path', storage_path('app/insurance-journals')),
+                config('runpod.load_path', storage_path('app/runpod')),
                 config('runpod.remote_prefix', 'data')
             );
         });

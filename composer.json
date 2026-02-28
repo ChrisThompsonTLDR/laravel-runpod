@@ -1,5 +1,5 @@
 {
-    "name": "chris/laravel-runpod",
+    "name": "christhompsontldr/laravel-runpod",
     "description": "Laravel integration for RunPod S3 storage and SoipoServices/runpod",
     "keywords": ["laravel", "runpod", "s3", "storage"],
     "license": "MIT",
@@ -18,13 +18,13 @@
     },
     "autoload": {
         "psr-4": {
-            "Chris\\LaravelRunPod\\": "src/"
+            "ChrisThompsonTLDR\\LaravelRunPod\\": "src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Chris\\LaravelRunPod\\LaravelRunPodServiceProvider"
+                "ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"
             ]
         }
     },
