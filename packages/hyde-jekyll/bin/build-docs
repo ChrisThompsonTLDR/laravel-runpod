@@ -1,0 +1,75 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Build the Hyde static site and copy output to the consuming project's docs/ directory.
+ * Invoked as vendor/bin/build-docs from the project root.
+ */
+
+$packageDir = realpath(dirname(__DIR__));
+$projectRoot = dirname(dirname($packageDir));
+
+$docsDir = $projectRoot . DIRECTORY_SEPARATOR . 'docs';
+
+chdir($packageDir);
+
+// Build assets
+$npmCmd = 'npm ci 2>/dev/null || npm install';
+$npmBuild = 'npm run build';
+passthru($npmCmd, $code);
+if ($code !== 0) {
+    fwrite(STDERR, "Warning: npm ci failed, trying npm run build anyway.\n");
+}
+passthru($npmBuild, $code);
+if ($code !== 0) {
+    fwrite(STDERR, "Error: npm run build failed.\n");
+    exit(1);
+}
+
+// Build Hyde site (use package's hyde binary)
+$hydeCmd = 'php hyde build --pretty-urls --no-interaction';
+passthru($hydeCmd, $code);
+if ($code !== 0) {
+    fwrite(STDERR, "Error: hyde build failed.\n");
+    exit(1);
+}
+
+// Copy _site to docs/
+$siteDir = $packageDir . DIRECTORY_SEPARATOR . '_site';
+if (!is_dir($siteDir)) {
+    fwrite(STDERR, "Error: _site directory not found after build.\n");
+    exit(1);
+}
+
+if (is_dir($docsDir)) {
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($docsDir, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($files as $file) {
+        $file->isDir() ? rmdir($file->getRealPath()) : unlink($file->getRealPath());
+    }
+    rmdir($docsDir);
+}
+
+$iterator = new RecursiveIteratorIterator(
+    new RecursiveDirectoryIterator($siteDir, RecursiveDirectoryIterator::SKIP_DOTS),
+    RecursiveIteratorIterator::SELF_FIRST
+);
+
+foreach ($iterator as $item) {
+    $target = $docsDir . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
+    if ($item->isDir()) {
+        if (!is_dir($target)) {
+            mkdir($target, 0755, true);
+        }
+    } else {
+        $targetDir = dirname($target);
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+        copy($item->getRealPath(), $target);
+    }
+}
+
+echo "Docs built successfully to {$docsDir}\n";

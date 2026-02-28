@@ -110,7 +110,7 @@ class RunPodClient
 
         $data = $response->json();
 
-        return is_array($data) ? $data : null;
+        return is_array($data) ? $data : [];
     }
 
     /**
@@ -126,7 +126,7 @@ class RunPodClient
 
         $data = $response->json();
 
-        return is_array($data) ? $data : null;
+        return is_array($data) ? $data : [];
     }
 
     /**
@@ -142,7 +142,7 @@ class RunPodClient
 
         $data = $response->json();
 
-        return is_array($data) ? $data : null;
+        return is_array($data) ? $data : [];
     }
 
     /**
@@ -158,7 +158,7 @@ class RunPodClient
 
         $data = $response->json();
 
-        return is_array($data) ? $data : null;
+        return is_array($data) ? $data : [];
     }
 
     // -------------------------------------------------------------------------

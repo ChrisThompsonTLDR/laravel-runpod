@@ -52,11 +52,16 @@ class RunPodPodClient
     /**
      * Build the public proxy URL for an HTTP port on a pod.
      * Parses the REST API's ports array (e.g. ["8000/http", "22/tcp"]).
+     * Checks both top-level 'ports' and 'runtime.ports' for API compatibility.
      */
     public function getPublicUrl(string $podId, int $privatePort = 8000): ?string
     {
         $pod = $this->getPod($podId);
-        $ports = $pod['ports'] ?? [];
+        if (! $pod) {
+            return sprintf('https://%s-%d.proxy.runpod.net', $podId, $privatePort);
+        }
+
+        $ports = $pod['ports'] ?? $pod['runtime']['ports'] ?? [];
 
         foreach ($ports as $portSpec) {
             if (is_string($portSpec) && str_contains($portSpec, '/') && str_ends_with($portSpec, '/http')) {

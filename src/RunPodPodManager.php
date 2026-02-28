@@ -157,12 +157,19 @@ class RunPodPodManager
             'env' => $env,
         ];
 
+        $vcpuCount = $config['min_vcpu_count'] ?? $config['vcpu_count'] ?? 2;
+        $minMemoryInGb = $config['min_memory_in_gb'] ?? 15;
+
         if ($gpuCount > 0) {
             $gpuTypeId = $config['gpu_type_id'] ?? 'NVIDIA GeForce RTX 4090';
             $input['gpuTypeIds'] = [$gpuTypeId];
+            $input['minRAMPerGPU'] = $minMemoryInGb;
+            $input['minVCPUPerGPU'] = $vcpuCount;
         } else {
             $input['computeType'] = 'CPU';
-            $input['vcpuCount'] = $config['min_vcpu_count'] ?? $config['vcpu_count'] ?? 2;
+            $input['vcpuCount'] = $vcpuCount;
+            $input['minVcpuCount'] = $vcpuCount;
+            $input['minMemoryInGb'] = $minMemoryInGb;
         }
 
         if (! empty($config['network_volume_id'])) {

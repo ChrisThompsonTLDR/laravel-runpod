@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Storage;
  *
  * Fluent, Laravel-esque API:
  *
- *   RunPod::refresh(PymupdfJob::class)
+ *   RunPod::for(PymupdfJob::class)
  *       ->disk('runpod')
  *       ->ensure($filename);
  *
- *   $pod = RunPod::refresh(PymupdfJob::class)
+ *   $pod = RunPod::for(PymupdfJob::class)
  *       ->instance('pymupdf')
  *       ->start();
  *
@@ -38,7 +38,7 @@ class RunPod
      * Set the "nickname" (cache key) for this pod's state.
      * Used for per-consumer last_run_at tracking and prune scheduling.
      */
-    public function refresh(string $nickname): static
+    public function for(string $nickname): static
     {
         $this->nickname = $nickname;
         $this->podManager->setNickname($nickname);

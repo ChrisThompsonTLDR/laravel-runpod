@@ -1,7 +1,12 @@
 {
     "name": "christhompsontldr/laravel-runpod",
     "description": "Laravel integration for RunPod S3 storage and SoipoServices/runpod",
-    "keywords": ["laravel", "runpod", "s3", "storage"],
+    "keywords": [
+        "laravel",
+        "runpod",
+        "s3",
+        "storage"
+    ],
     "license": "MIT",
     "authors": [
         {
@@ -28,5 +33,14 @@
             ]
         }
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "require-dev": {
+        "christhompsontldr/hyde-jekyll": "@dev"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/hyde-jekyll"
+        }
+    ]
 }

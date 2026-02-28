@@ -109,7 +109,7 @@ Use the `RunPod` class (or its facade) for a higher-level, Laravel-esque workflo
 ```php
 use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 
-$runPod = app(RunPod::class)->refresh(PymupdfJob::class);
+$runPod = app(RunPod::class)->for(PymupdfJob::class);
 
 // File operations via the configured S3 disk
 $runPod->disk('runpod')->ensure($filename);
@@ -124,7 +124,7 @@ Or via the facade (add alias in `config/app.php`):
 ```php
 // 'RunPod' => ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod::class
 
-RunPod::refresh(self::class)->disk('runpod')->ensure($filename);
+RunPod::for(self::class)->disk('runpod')->ensure($filename);
 $pod = RunPod::instance('pymupdf')->start();
 ```
 
@@ -201,7 +201,7 @@ class PymupdfJob implements ShouldQueue
         $this->withRunPodRefresh(function () use ($pod) {
             $response = Http::post($pod['url'].'/extract', [...]);
             // process response
-        }); // refresh fires automatically in finally
+        }); // for() fires automatically in finally
     }
 }
 ```

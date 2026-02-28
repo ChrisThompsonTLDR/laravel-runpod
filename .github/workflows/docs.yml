@@ -1,0 +1,29 @@
+name: Build and Deploy Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-php@v2
+        with:
+          php-version: '8.2'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: composer install --no-interaction
+      - name: Build docs (via package)
+        run: vendor/bin/build-docs
+      - name: Add .nojekyll
+        run: touch docs/.nojekyll
+      - name: Commit docs
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: docs
+          message: Build docs site
