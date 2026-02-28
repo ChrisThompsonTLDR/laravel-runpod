@@ -12,14 +12,20 @@ class LaravelRunPodServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/runpod.php', 'runpod');
 
-        $this->app->singleton(RunPodPodClient::class, function () {
+        $this->app->singleton(RunPodClient::class, function () {
             $apiKey = config('runpod.api_key');
 
             if ($apiKey === null || $apiKey === '') {
                 throw new RunPodApiKeyNotConfiguredException;
             }
 
-            return new RunPodPodClient(apiKey: $apiKey);
+            return new RunPodClient(apiKey: $apiKey);
+        });
+
+        $this->app->singleton(RunPodPodClient::class, function () {
+            return new RunPodPodClient(
+                client: $this->app->make(RunPodClient::class)
+            );
         });
 
         $this->app->singleton(RunPodPodManager::class, function () {
@@ -39,7 +45,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
 
         $this->app->singleton(RunPodGuardrails::class, function () {
             return new RunPodGuardrails(
-                client: $this->app->make(RunPodPodClient::class)
+                client: $this->app->make(RunPodClient::class)
             );
         });
     }

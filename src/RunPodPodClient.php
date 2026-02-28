@@ -2,159 +2,65 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
-use Illuminate\Support\Facades\Http;
-
+/**
+ * Pod lifecycle client. Delegates all HTTP operations to RunPodClient.
+ */
 class RunPodPodClient
 {
     public function __construct(
-        protected string $apiKey,
-        protected string $graphqlUrl = 'https://api.runpod.io/graphql',
-        protected string $restUrl = 'https://rest.runpod.io/v1'
+        protected RunPodClient $client
     ) {}
 
     public function createPod(array $input): ?array
     {
-        $mutation = <<<'GQL'
-mutation PodFindAndDeployOnDemand($input: PodFindAndDeployOnDemandInput!) {
-  podFindAndDeployOnDemand(input: $input) {
-    id
-    name
-    imageName
-    machineId
-    desiredStatus
-    runtime {
-      ports {
-        ip
-        isIpPublic
-        privatePort
-        publicPort
-        type
-      }
-    }
-  }
-}
-GQL;
-
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer '.$this->apiKey,
-        ])->post($this->graphqlUrl, [
-            'query' => $mutation,
-            'variables' => ['input' => $input],
-        ]);
-
-        if (! $response->successful()) {
-            return null;
-        }
-
-        $data = $response->json('data.podFindAndDeployOnDemand');
-
-        return is_array($data) ? $data : null;
+        return $this->client->createPod($input);
     }
 
     public function getPod(string $podId): ?array
     {
-        $query = <<<'GQL'
-query Pod($podId: String!) {
-  pod(input: { podId: $podId }) {
-    id
-    name
-    desiredStatus
-    runtime {
-      uptimeInSeconds
-      ports {
-        ip
-        isIpPublic
-        privatePort
-        publicPort
-        type
-      }
-    }
-  }
-}
-GQL;
-
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer '.$this->apiKey,
-        ])->post($this->graphqlUrl, [
-            'query' => $query,
-            'variables' => ['podId' => $podId],
-        ]);
-
-        if (! $response->successful()) {
-            return null;
-        }
-
-        $data = $response->json('data.pod');
-
-        return is_array($data) ? $data : null;
+        return $this->client->getPod($podId);
     }
 
     public function stopPod(string $podId): bool
     {
-        $mutation = <<<'GQL'
-mutation PodStop($input: PodStopInput!) {
-  podStop(input: $input) {
-    id
-    desiredStatus
-  }
-}
-GQL;
-
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer '.$this->apiKey,
-        ])->post($this->graphqlUrl, [
-            'query' => $mutation,
-            'variables' => ['input' => ['podId' => $podId]],
-        ]);
-
-        return $response->successful();
+        return $this->client->stopPod($podId) !== null;
     }
 
     public function terminatePod(string $podId): bool
     {
-        $response = Http::withToken($this->apiKey)
-            ->delete("{$this->restUrl}/pods/{$podId}");
-
-        return $response->status() === 204;
+        return $this->client->deletePod($podId);
     }
 
+    /**
+     * Return a summary of the account's current resource usage.
+     * Uses the REST list endpoints to aggregate pods, serverless endpoints,
+     * and network volumes.
+     */
     public function getMyself(): ?array
     {
-        $query = <<<'GQL'
-query Myself {
-  myself {
-    pods { id desiredStatus }
-    endpoints { id workersMax workersMin }
-    networkVolumes { id volumeInGb }
-  }
-}
-GQL;
+        $pods = $this->client->listPods();
+        $endpoints = $this->client->listEndpoints();
+        $networkVolumes = $this->client->listNetworkVolumes();
 
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer '.$this->apiKey,
-        ])->post($this->graphqlUrl, [
-            'query' => $query,
-        ]);
-
-        if (! $response->successful()) {
-            return null;
-        }
-
-        return $response->json('data.myself');
+        return [
+            'pods' => $pods,
+            'endpoints' => $endpoints,
+            'networkVolumes' => $networkVolumes,
+        ];
     }
 
+    /**
+     * Build the public proxy URL for an HTTP port on a pod.
+     * Parses the REST API's ports array (e.g. ["8000/http", "22/tcp"]).
+     */
     public function getPublicUrl(string $podId, int $privatePort = 8000): ?string
     {
         $pod = $this->getPod($podId);
-        $ports = $pod['runtime']['ports'] ?? [];
+        $ports = $pod['ports'] ?? [];
 
-        foreach ($ports as $port) {
-            if (($port['type'] ?? '') === 'http') {
-                $portNum = (int) ($port['privatePort'] ?? $port['publicPort'] ?? $privatePort);
+        foreach ($ports as $portSpec) {
+            if (is_string($portSpec) && str_contains($portSpec, '/') && str_ends_with($portSpec, '/http')) {
+                $portNum = (int) explode('/', $portSpec)[0];
 
                 return sprintf('https://%s-%d.proxy.runpod.net', $podId, $portNum ?: $privatePort);
             }

@@ -132,25 +132,37 @@ class RunPodPodManager
 
         $gpuCount = $config['gpu_count'] ?? 0;
 
+        // Convert env from [{key: K, value: V}] (config format) to {K: V} (REST format)
+        $env = [];
+        foreach ($config['env'] ?? [] as $item) {
+            if (isset($item['key'], $item['value'])) {
+                $env[$item['key']] = $item['value'];
+            }
+        }
+
+        // Convert ports from string "8000/http" or "8000/http,22/tcp" to array
+        $ports = $config['ports'] ?? '8000/http';
+        if (is_string($ports)) {
+            $ports = array_values(array_filter(array_map('trim', explode(',', $ports))));
+        }
+
         $input = [
-            'cloudType' => $config['cloud_type'] ?? 'SECURE',
+            'name' => $config['name'] ?? 'runpod-pod',
+            'imageName' => $config['image_name'],
             'gpuCount' => $gpuCount,
             'volumeInGb' => $config['volume_in_gb'] ?? 50,
             'containerDiskInGb' => $config['container_disk_in_gb'] ?? 50,
-            'minVcpuCount' => $config['min_vcpu_count'] ?? 2,
-            'minMemoryInGb' => $config['min_memory_in_gb'] ?? 15,
-            'name' => $config['name'] ?? 'eyejay-pymupdf',
-            'imageName' => $config['image_name'],
-            'dockerArgs' => '',
-            'ports' => $config['ports'] ?? '8000/http',
             'volumeMountPath' => $config['volume_mount_path'] ?? '/workspace',
-            'env' => $config['env'] ?? [],
+            'ports' => $ports,
+            'env' => $env,
         ];
 
         if ($gpuCount > 0) {
-            $input['gpuTypeId'] = $config['gpu_type_id'] ?? 'NVIDIA GeForce RTX 4090';
+            $gpuTypeId = $config['gpu_type_id'] ?? 'NVIDIA GeForce RTX 4090';
+            $input['gpuTypeIds'] = [$gpuTypeId];
         } else {
             $input['computeType'] = 'CPU';
+            $input['vcpuCount'] = $config['min_vcpu_count'] ?? $config['vcpu_count'] ?? 2;
         }
 
         if (! empty($config['network_volume_id'])) {

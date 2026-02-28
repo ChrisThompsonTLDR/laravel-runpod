@@ -11,9 +11,9 @@
     ],
     "require": {
         "php": "^8.2",
+        "illuminate/http": "^11.0|^12.0",
         "illuminate/support": "^11.0|^12.0",
         "illuminate/filesystem": "^11.0|^12.0",
-        "soiposervices/runpod": "^0.4",
         "league/flysystem-aws-s3-v3": "^3.0"
     },
     "autoload": {
