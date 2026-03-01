@@ -53,6 +53,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerRunPodDisk();
+        $this->registerMacros();
         $this->registerCommands();
         $this->registerSchedule();
 
@@ -81,8 +82,19 @@ class LaravelRunPodServiceProvider extends ServiceProvider
                 'endpoint' => $config['endpoint'],
                 'use_path_style_endpoint' => true,
                 'throw' => false,
+                // RunPod S3 API does not support x-amz-acl; strip it from PutObject requests
+                'options' => [
+                    'before_upload' => function ($command) {
+                        $command->offsetUnset('ACL');
+                    },
+                ],
             ],
         ]);
+    }
+
+    protected function registerMacros(): void
+    {
+        Macros\StorageMacros::register();
     }
 
     protected function registerCommands(): void
@@ -92,6 +104,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
                 Console\SyncCommand::class,
                 Console\StartCommand::class,
                 Console\ListCommand::class,
+                Console\InspectCommand::class,
                 Console\PruneCommand::class,
                 Console\GuardrailsCommand::class,
             ]);

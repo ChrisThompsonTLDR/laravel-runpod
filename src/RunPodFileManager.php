@@ -3,7 +3,7 @@
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
-use League\Flysystem\UnableToCheckFileExistence;
+use League\Flysystem\UnableToCheckExistence;
 
 class RunPodFileManager
 {
@@ -89,12 +89,15 @@ class RunPodFileManager
         $exists = false;
         try {
             $exists = $this->disk->exists($remotePath);
-        } catch (UnableToCheckFileExistence $e) {
+        } catch (UnableToCheckExistence $e) {
             // S3/network unreachable or misconfigured; assume missing and sync
         }
 
         if (! $exists) {
-            $this->disk->put($remotePath, file_get_contents($localPath));
+            $ok = $this->disk->put($remotePath, file_get_contents($localPath));
+            if ($ok === false) {
+                throw new \RuntimeException("Failed to upload {$remotePath} to RunPod storage (S3 put returned false)");
+            }
         }
 
         return $this;

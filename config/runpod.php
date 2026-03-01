@@ -1,127 +1,79 @@
 <?php
 
 return [
-    'disk' => env('RUNPOD_DISK', 'runpod'),
+    'disk' => 'runpod',
 
-    /*
-    |--------------------------------------------------------------------------
-    | Guardrails
-    |--------------------------------------------------------------------------
-    |
-    | Limits for RunPod API usage. When exceeded, GuardrailsExceededException
-    | is thrown and GuardrailsTripped event is dispatched.
-    | Usage is cached; cache_schedule controls TTL (default 15 min).
-    |
-    */
     'guardrails' => [
-        'enabled' => env('RUNPOD_GUARDRAILS_ENABLED', true),
-        'cache_schedule' => env('RUNPOD_GUARDRAILS_CACHE_SCHEDULE', 'everyFifteenMinutes'),
+        'enabled' => true,
+        'cache_schedule' => 'everyFifteenMinutes',
         'limits' => [
             'pods' => [
-                'pods_max' => (int) env('RUNPOD_GUARDRAILS_PODS_MAX', 10),
-                'pods_running_max' => (int) env('RUNPOD_GUARDRAILS_PODS_RUNNING_MAX', 5),
+                'pods_max' => 10,
+                'pods_running_max' => 5,
             ],
             'serverless' => [
-                'endpoints_max' => (int) env('RUNPOD_GUARDRAILS_ENDPOINTS_MAX', 5),
-                'workers_total_max' => (int) env('RUNPOD_GUARDRAILS_WORKERS_TOTAL_MAX', 20),
+                'endpoints_max' => 5,
+                'workers_total_max' => 20,
             ],
             'storage' => [
-                'network_volumes_max' => (int) env('RUNPOD_GUARDRAILS_NETWORK_VOLUMES_MAX', 5),
-                'volume_size_gb_max' => (int) env('RUNPOD_GUARDRAILS_VOLUME_SIZE_GB_MAX', 100),
+                'network_volumes_max' => 5,
+                'volume_size_gb_max' => 100,
             ],
         ],
     ],
 
-    'load_path' => env('RUNPOD_LOAD_PATH', storage_path('app/runpod')),
+    'load_path' => storage_path('app/runpod'),
 
-    'remote_prefix' => env('RUNPOD_REMOTE_PREFIX', 'data'),
+    'remote_prefix' => 'data',
 
     's3' => [
         'key' => env('RUNPOD_S3_ACCESS_KEY'),
         'secret' => env('RUNPOD_S3_SECRET_KEY'),
-        'region' => env('RUNPOD_S3_REGION', 'EU-RO-1'),
-        'bucket' => env('RUNPOD_NETWORK_VOLUME_ID'),
-        'endpoint' => env('RUNPOD_S3_ENDPOINT', 'https://s3api-eu-ro-1.runpod.io'),
+        'region' => 'US-MD-1',
+        'bucket' => null,
+        'endpoint' => 'https://s3api-us-md-1.runpod.io',
     ],
 
     'api_key' => env('RUNPOD_API_KEY'),
 
-    'state_file' => env('RUNPOD_STATE_FILE', storage_path('app/runpod-pod-state.json')),
+    'state_file' => storage_path('app/runpod-pod-state.json'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Prune Schedule
-    |--------------------------------------------------------------------------
-    |
-    | How often to run the runpod:prune command to terminate inactive pods.
-    | Options: everyMinute, everyTwoMinutes, everyFiveMinutes, everyTenMinutes,
-    |          everyFifteenMinutes, everyThirtyMinutes, hourly
-    |
-    */
-    'prune_schedule' => env('RUNPOD_PRUNE_SCHEDULE', 'everyFiveMinutes'),
+    'prune_schedule' => 'everyFiveMinutes',
 
-    /*
-    |--------------------------------------------------------------------------
-    | Instances (Pods / Serverless)
-    |--------------------------------------------------------------------------
-    |
-    | Named instances for different workloads. Each can be type 'pod' or 'serverless'.
-    | Pods use prune_schedule; serverless uses idleTimeout (built-in).
-    |
-    | Each instance's pod config is merged over the base 'pod' config. Override
-    | image_name, network_volume_id, etc. per instance when running different
-    | workloads (e.g. RUNPOD_PYMUPDF_IMAGE, RUNPOD_DOCLING_IMAGE).
-    |
-    */
     'instances' => [
         'pymupdf' => [
             'type' => 'pod',
             'prune_schedule' => 'everyFiveMinutes',
             'pod' => [
-                'image_name' => env('RUNPOD_PYMUPDF_IMAGE', env('RUNPOD_POD_IMAGE')),
-                'network_volume_id' => env('RUNPOD_PYMUPDF_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
+                'image_name' => 'ghcr.io/christhompsontldr/docker-pymupdf-tesseract:latest',
+                'network_volume_id' => null,
+                'data_center_ids' => ['US-MD-1'],
                 'gpu_count' => 0,
-                'name' => env('RUNPOD_PYMUPDF_POD_NAME', env('RUNPOD_POD_NAME', 'eyejay-pymupdf')),
-                'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
-                'volume_mount_path' => env('RUNPOD_POD_VOLUME_MOUNT', '/workspace'),
+                'name' => 'eyejay-pymupdf',
+                'ports' => '8000/http',
+                'volume_mount_path' => '/workspace',
                 'env' => [
                     ['key' => 'PYMUPDF_DATA_DIR', 'value' => '/workspace'],
                     ['key' => 'PYMUPDF_OUTPUT_DIR', 'value' => '/workspace/output'],
                 ],
             ],
         ],
-        // Example second instance - each has its own image, state file, prune schedule
-        // 'docling' => [
-        //     'type' => 'pod',
-        //     'prune_schedule' => 'everyFiveMinutes',
-        //     'pod' => [
-        //         'image_name' => env('RUNPOD_DOCLING_IMAGE'),
-        //         'network_volume_id' => env('RUNPOD_DOCLING_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
-        //         'gpu_count' => 1,
-        //         'name' => env('RUNPOD_DOCLING_POD_NAME', 'eyejay-docling'),
-        //         'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
-        //         'volume_mount_path' => env('RUNPOD_POD_VOLUME_MOUNT', '/workspace'),
-        //         'env' => [
-        //             ['key' => 'DOCLING_DATA_DIR', 'value' => '/workspace'],
-        //         ],
-        //     ],
-        // ],
     ],
 
     'pod' => [
-        'inactivity_minutes' => (int) env('RUNPOD_POD_INACTIVITY_MINUTES', 2),
-        'gpu_type_id' => env('RUNPOD_POD_GPU_TYPE_ID', 'NVIDIA GeForce RTX 4090'),
-        'gpu_count' => (int) env('RUNPOD_POD_GPU_COUNT', 0),
-        'volume_in_gb' => (int) env('RUNPOD_POD_VOLUME_GB', 50),
-        'container_disk_in_gb' => (int) env('RUNPOD_POD_CONTAINER_DISK_GB', 50),
-        'min_vcpu_count' => (int) env('RUNPOD_POD_MIN_VCPU', 2),
-        'min_memory_in_gb' => (int) env('RUNPOD_POD_MIN_MEMORY_GB', 15),
-        'image_name' => env('RUNPOD_POD_IMAGE'),
-        'name' => env('RUNPOD_POD_NAME', 'eyejay-pymupdf'),
-        'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
-        'volume_mount_path' => env('RUNPOD_POD_VOLUME_MOUNT', '/workspace'),
-        'network_volume_id' => env('RUNPOD_NETWORK_VOLUME_ID'),
-        'cloud_type' => env('RUNPOD_POD_CLOUD_TYPE', 'SECURE'),
+        'inactivity_minutes' => 2,
+        'gpu_type_id' => 'NVIDIA GeForce RTX 4090',
+        'gpu_count' => 0,
+        'volume_in_gb' => 50,
+        'container_disk_in_gb' => 50,
+        'min_vcpu_count' => 2,
+        'min_memory_in_gb' => 15,
+        'image_name' => 'ghcr.io/christhompsontldr/docker-pymupdf-tesseract:latest',
+        'name' => 'eyejay-pymupdf',
+        'ports' => '8000/http',
+        'volume_mount_path' => '/workspace',
+        'network_volume_id' => null,
+        'cloud_type' => 'SECURE',
         'env' => [
             ['key' => 'PYMUPDF_DATA_DIR', 'value' => '/workspace'],
             ['key' => 'PYMUPDF_OUTPUT_DIR', 'value' => '/workspace/output'],

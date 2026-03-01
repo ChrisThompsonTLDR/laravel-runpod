@@ -106,6 +106,20 @@ class RunPodPodManager
         return $this->terminatePod();
     }
 
+    /**
+     * Get full pod details from the RunPod API (includes networkVolumeId, etc.).
+     */
+    public function getPodDetails(): ?array
+    {
+        $state = $this->readState();
+
+        if (! $state || ! ($state['pod_id'] ?? null)) {
+            return null;
+        }
+
+        return $this->client->getPod($state['pod_id']);
+    }
+
     public function getPodUrl(): ?string
     {
         $state = $this->readState();
@@ -179,6 +193,10 @@ class RunPodPodManager
 
         if (! empty($config['network_volume_id'])) {
             $input['networkVolumeId'] = $config['network_volume_id'];
+        }
+
+        if (! empty($config['data_center_ids'])) {
+            $input['dataCenterIds'] = (array) $config['data_center_ids'];
         }
 
         return $this->client->createPod($input);

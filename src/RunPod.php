@@ -105,6 +105,14 @@ class RunPod
     }
 
     /**
+     * Get full pod details from the RunPod API (includes networkVolumeId, desiredStatus, etc.).
+     */
+    public function pod(): ?array
+    {
+        return $this->podManager->getPodDetails();
+    }
+
+    /**
      * Get the pod URL after start(). Returns null if not started.
      */
     public function url(): ?string
