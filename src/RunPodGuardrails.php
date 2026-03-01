@@ -12,7 +12,7 @@ class RunPodGuardrails
     protected const CACHE_KEY = 'runpod_guardrails_usage';
 
     public function __construct(
-        protected RunPodPodClient $client
+        protected RunPodClient $client
     ) {}
 
     /**
@@ -70,18 +70,9 @@ class RunPodGuardrails
         $cacheTtl = $this->getCacheTtlSeconds();
 
         return Cache::remember(self::CACHE_KEY, $cacheTtl, function () {
-            $data = $this->client->getMyself();
-            if (! $data) {
-                return [
-                    'pods' => [],
-                    'endpoints' => [],
-                    'network_volumes' => [],
-                ];
-            }
-
-            $pods = $data['pods'] ?? [];
-            $endpoints = $data['endpoints'] ?? [];
-            $networkVolumes = $data['networkVolumes'] ?? [];
+            $pods = $this->client->listPods();
+            $endpoints = $this->client->listEndpoints();
+            $networkVolumes = $this->client->listNetworkVolumes();
 
             $workersTotal = 0;
             foreach ($endpoints as $ep) {
@@ -208,7 +199,8 @@ class RunPodGuardrails
     {
         $sum = 0;
         foreach ($volumes as $vol) {
-            $sum += (float) ($vol['volumeInGb'] ?? 0);
+            // REST API uses 'size'; fall back to 'volumeInGb' for compatibility
+            $sum += (float) ($vol['size'] ?? $vol['volumeInGb'] ?? 0);
         }
 
         return $sum;

@@ -1,0 +1,67 @@
+{
+    "name": "christhompsontldr/laravel-runpod",
+    "description": "Laravel integration for RunPod S3 storage and SoipoServices/runpod",
+    "keywords": [
+        "laravel",
+        "runpod",
+        "s3",
+        "storage"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chris Thompson",
+            "email": "christhompsontldr@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/http": "^11.0|^12.0",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/filesystem": "^11.0|^12.0",
+        "league/flysystem-aws-s3-v3": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ChrisThompsonTLDR\\LaravelRunPod\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ChrisThompsonTLDR\\LaravelRunPod\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "require-dev": {
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "orchestra/testbench": "^10.0",
+        "laravel/pint": "^1.0",
+        "larastan/larastan": "^3.1",
+        "pestphp/pest-plugin-arch": "^4.0",
+        "pestphp/pest-plugin-mutate": "^4.0",
+        "pestphp/pest-plugin-stressless": "^4.0",
+        "pestphp/pest-plugin-type-coverage": "^4.0"
+    },
+    "scripts": {
+        "test": "pest",
+        "test:coverage": "pest --coverage",
+        "test:mutate": "pest --mutate",
+        "test:arch": "pest tests/Architecture",
+        "lint": "pint",
+        "lint:fix": "pint",
+        "analyse": "phpstan analyse"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}

@@ -3,30 +3,53 @@
     "description": "Laravel integration for RunPod S3 storage and SoipoServices/runpod",
     "keywords": ["laravel", "runpod", "s3", "storage"],
     "license": "MIT",
-    "authors": [
+    "authors": [{"name": "Chris Thompson", "email": "christhompsontldr@gmail.com"}],
+    "repositories": [
         {
-            "name": "Chris Thompson",
-            "email": "christhompsontldr@gmail.com"
+            "type": "vcs",
+            "url": "https://github.com/ChrisThompsonTLDR/laravel-docit"
         }
     ],
     "require": {
-        "php": "^8.2",
+        "php": "^8.3",
+        "illuminate/http": "^11.0|^12.0",
         "illuminate/support": "^11.0|^12.0",
         "illuminate/filesystem": "^11.0|^12.0",
-        "soiposervices/runpod": "^0.4",
         "league/flysystem-aws-s3-v3": "^3.0"
     },
     "autoload": {
-        "psr-4": {
-            "ChrisThompsonTLDR\\LaravelRunPod\\": "src/"
-        }
+        "psr-4": {"ChrisThompsonTLDR\\LaravelRunPod\\": "src/"}
     },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"
-            ]
-        }
+    "autoload-dev": {
+        "psr-4": {"ChrisThompsonTLDR\\LaravelRunPod\\Tests\\": "tests/"}
     },
-    "minimum-stability": "stable"
+    "extra": {"laravel": {"providers": ["ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"]}},
+    "minimum-stability": "stable",
+    "require-dev": {
+        "christhompsontldr/laravel-docit": "dev-main",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "orchestra/testbench": "^9.0",
+        "laravel/pint": "^1.0",
+        "larastan/larastan": "^3.0",
+        "pestphp/pest-plugin-arch": "^4.0",
+        "pestphp/pest-plugin-mutate": "^4.0",
+        "pestphp/pest-plugin-stressless": "^4.0",
+        "pestphp/pest-plugin-type-coverage": "^4.0"
+    },
+    "scripts": {
+        "test": "pest --no-coverage",
+        "test:coverage": "pest --coverage",
+        "test:mutate": "pest --mutate",
+        "test:arch": "pest tests/Architecture",
+        "lint": "pint",
+        "lint:fix": "pint",
+        "analyse": "phpstan analyse",
+        "docit": "php vendor/christhompsontldr/laravel-docit/bin/build-docs"
+    },
+    "config": {"allow-plugins": {"pestphp/pest-plugin": true}},
+    "suggest": {
+        "nunomaduro/termwind": "For terminal dashboard styling",
+        "xico2k/termwind-plugin-live": "For live-updating terminal dashboard"
+    }
 }
