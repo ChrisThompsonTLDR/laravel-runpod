@@ -46,10 +46,12 @@ class RunPodClient
 
     /**
      * Get a pod by ID.
+     *
+     * @param  array  $params  Optional query params: includeMachine, includeNetworkVolume, includeSavingsPlans, includeTemplate, includeWorkers
      */
-    public function getPod(string $podId): ?array
+    public function getPod(string $podId, array $params = []): ?array
     {
-        $response = $this->http()->get("/pods/{$podId}");
+        $response = $this->http()->get("/pods/{$podId}", $params);
 
         if (! $response->successful()) {
             return null;

@@ -72,6 +72,7 @@ it('returns null from start() when podManager ensurePod returns null', function 
     $mockManager = Mockery::mock(RunPodPodManager::class);
     $mockManager->shouldReceive('configure')->once();
     $mockManager->shouldReceive('setStatePath')->once();
+    $mockManager->shouldReceive('setInstanceName')->once();
     $mockManager->shouldReceive('ensurePod')->once()->andReturn(null);
 
     $mockClient = Mockery::mock(RunPodPodClient::class);
@@ -87,6 +88,7 @@ it('returns null from start() when pod has no url', function () {
     $mockManager = Mockery::mock(RunPodPodManager::class);
     $mockManager->shouldReceive('configure')->once();
     $mockManager->shouldReceive('setStatePath')->once();
+    $mockManager->shouldReceive('setInstanceName')->once();
     $mockManager->shouldReceive('ensurePod')->once()->andReturn(['pod_id' => 'abc', 'url' => null]);
 
     $mockClient = Mockery::mock(RunPodPodClient::class);
@@ -102,6 +104,7 @@ it('returns pod from start() when ensurePod succeeds', function () {
     $mockManager = Mockery::mock(RunPodPodManager::class);
     $mockManager->shouldReceive('configure')->once();
     $mockManager->shouldReceive('setStatePath')->once();
+    $mockManager->shouldReceive('setInstanceName')->once();
     $mockManager->shouldReceive('ensurePod')->once()->andReturn([
         'pod_id' => 'pod-123',
         'url' => 'https://pod-123.runpod.io',
@@ -123,6 +126,7 @@ it('updates lastRunAt when nickname is set in start()', function () {
     $mockManager = Mockery::mock(RunPodPodManager::class);
     $mockManager->shouldReceive('setNickname')->with('job-class')->once();
     $mockManager->shouldReceive('setStatePath')->twice(); // for() + start()
+    $mockManager->shouldReceive('setInstanceName')->once();
     $mockManager->shouldReceive('updateLastRunAt')->times(3); // for() + start() before and after ensurePod
     $mockManager->shouldReceive('configure')->once();
     $mockManager->shouldReceive('ensurePod')->once()->andReturn([
@@ -141,6 +145,7 @@ it('returns url from podResult after start()', function () {
     $mockManager = Mockery::mock(RunPodPodManager::class);
     $mockManager->shouldReceive('configure')->once();
     $mockManager->shouldReceive('setStatePath')->once();
+    $mockManager->shouldReceive('setInstanceName')->once();
     $mockManager->shouldReceive('ensurePod')->once()->andReturn([
         'pod_id' => 'pod-123',
         'url' => 'https://pod-123.runpod.io',

@@ -38,6 +38,8 @@ return [
 
     'state_file' => storage_path('app/runpod-pod-state.json'),
 
+    'stats_file' => storage_path('app/runpod-stats.json'),
+
     'prune_schedule' => 'everyFiveMinutes',
 
     'instances' => [

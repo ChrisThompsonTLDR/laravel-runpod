@@ -22,9 +22,25 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             return new RunPodClient(apiKey: $apiKey);
         });
 
+        $this->app->singleton(RunPodGraphQLClient::class, function () {
+            $apiKey = config('runpod.api_key');
+            if ($apiKey === null || $apiKey === '') {
+                throw new RunPodApiKeyNotConfiguredException;
+            }
+
+            return new RunPodGraphQLClient(apiKey: $apiKey);
+        });
+
+        $this->app->singleton(RunPodStatsWriter::class, function () {
+            return new RunPodStatsWriter(
+                basePath: config('runpod.stats_file', storage_path('app/runpod-stats.json'))
+            );
+        });
+
         $this->app->singleton(RunPodPodClient::class, function () {
             return new RunPodPodClient(
-                client: $this->app->make(RunPodClient::class)
+                client: $this->app->make(RunPodClient::class),
+                graphql: $this->app->make(RunPodGraphQLClient::class)
             );
         });
 
@@ -32,7 +48,8 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             return new RunPodPodManager(
                 client: $this->app->make(RunPodPodClient::class),
                 stateFilePath: config('runpod.state_file', storage_path('app/runpod-pod-state.json')),
-                podConfig: config('runpod.pod', [])
+                podConfig: config('runpod.pod', []),
+                statsWriter: $this->app->make(RunPodStatsWriter::class)
             );
         });
 
@@ -61,6 +78,17 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/runpod.php' => config_path('runpod.php'),
             ], 'laravel-runpod-config');
+
+            $this->publishes([
+                __DIR__.'/../resources/views' => resource_path('views/vendor/runpod'),
+            ], 'laravel-runpod-dashboard');
+        }
+
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'runpod');
+
+        if (class_exists(\Livewire\Livewire::class)) {
+            \Livewire\Livewire::component('runpod-dashboard', \ChrisThompsonTLDR\LaravelRunPod\Livewire\RunPodDashboard::class);
+            $this->loadRoutesFrom(__DIR__.'/../routes/dashboard.php');
         }
     }
 
@@ -107,6 +135,8 @@ class LaravelRunPodServiceProvider extends ServiceProvider
                 Console\InspectCommand::class,
                 Console\PruneCommand::class,
                 Console\GuardrailsCommand::class,
+                Console\StatsCommand::class,
+                Console\DashboardCommand::class,
             ]);
         }
     }
@@ -145,5 +175,8 @@ class LaravelRunPodServiceProvider extends ServiceProvider
         if (config('runpod.guardrails.enabled', true) && in_array($guardrailsSchedule, $allowed, true)) {
             Schedule::command('runpod:guardrails')->{$guardrailsSchedule}();
         }
+
+        // Stats: refresh dashboard stats file every 2 minutes
+        Schedule::command('runpod:stats')->everyTwoMinutes();
     }
 }

@@ -8,7 +8,8 @@ namespace ChrisThompsonTLDR\LaravelRunPod;
 class RunPodPodClient
 {
     public function __construct(
-        protected RunPodClient $client
+        protected RunPodClient $client,
+        protected ?RunPodGraphQLClient $graphql = null
     ) {}
 
     public function createPod(array $input): ?array
@@ -16,9 +17,24 @@ class RunPodPodClient
         return $this->client->createPod($input);
     }
 
-    public function getPod(string $podId): ?array
+    /**
+     * Get a pod by ID. Pass params for includeMachine, includeNetworkVolume, etc.
+     */
+    public function getPod(string $podId, array $params = []): ?array
     {
-        return $this->client->getPod($podId);
+        return $this->client->getPod($podId, $params);
+    }
+
+    /**
+     * Get pod telemetry (CPU, GPU, memory utilization) via GraphQL.
+     */
+    public function getPodTelemetry(string $podId): ?array
+    {
+        if (! $this->graphql) {
+            return null;
+        }
+
+        return $this->graphql->getPodTelemetry($podId);
     }
 
     public function stopPod(string $podId): bool

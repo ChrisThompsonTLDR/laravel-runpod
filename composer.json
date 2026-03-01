@@ -47,5 +47,9 @@
         "analyse": "phpstan analyse",
         "docit": "php vendor/christhompsontldr/laravel-docit/bin/build-docs"
     },
-    "config": {"allow-plugins": {"pestphp/pest-plugin": true}}
+    "config": {"allow-plugins": {"pestphp/pest-plugin": true}},
+    "suggest": {
+        "nunomaduro/termwind": "For terminal dashboard styling",
+        "xico2k/termwind-plugin-live": "For live-updating terminal dashboard"
+    }
 }

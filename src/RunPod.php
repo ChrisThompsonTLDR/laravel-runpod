@@ -85,6 +85,7 @@ class RunPod
         $podConfig = array_merge(config('runpod.pod', []), $config['pod'] ?? []);
         $this->podManager->configure($podConfig);
         $this->podManager->setStatePath($config['state_file'] ?? $this->resolveStatePath());
+        $this->podManager->setInstanceName($this->instanceName);
 
         if ($this->nickname) {
             $this->podManager->updateLastRunAt();
@@ -109,6 +110,8 @@ class RunPod
      */
     public function pod(): ?array
     {
+        $this->podManager->setInstanceName($this->instanceName);
+
         return $this->podManager->getPodDetails();
     }
 

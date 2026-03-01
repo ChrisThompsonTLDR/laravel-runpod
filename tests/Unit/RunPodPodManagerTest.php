@@ -18,7 +18,7 @@ it('returns existing pod when state has running pod', function () {
     file_put_contents($statePath, json_encode(['pod_id' => 'pod-123', 'last_run_at' => now()->toIso8601String()]));
 
     Http::fake([
-        'https://rest.runpod.io/v1/pods/pod-123' => Http::response([
+        'https://rest.runpod.io/v1/pods/pod-123*' => Http::response([
             'id' => 'pod-123',
             'desiredStatus' => 'RUNNING',
             'ports' => ['8000/http'],

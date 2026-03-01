@@ -6,15 +6,23 @@ class RunPodPodManager
 {
     protected ?string $nickname = null;
 
+    protected ?string $instanceName = null;
+
     public function __construct(
         protected RunPodPodClient $client,
         protected string $stateFilePath,
-        protected array $podConfig
+        protected array $podConfig,
+        protected ?RunPodStatsWriter $statsWriter = null
     ) {}
 
     public function setNickname(?string $nickname): void
     {
         $this->nickname = $nickname;
+    }
+
+    public function setInstanceName(?string $instanceName): void
+    {
+        $this->instanceName = $instanceName;
     }
 
     public function setStatePath(string $path): void
@@ -33,12 +41,15 @@ class RunPodPodManager
         $state = $this->readState();
 
         if ($state && ($state['pod_id'] ?? null)) {
-            $pod = $this->client->getPod($state['pod_id']);
+            $pod = $this->client->getPod($state['pod_id'], $this->podParamsForStats());
             if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
-                return [
+                $result = [
                     'pod_id' => $state['pod_id'],
                     'url' => $this->client->getPublicUrl($state['pod_id']),
                 ];
+                $this->writeStats($pod, $state['last_run_at'] ?? null);
+
+                return $result;
             }
         }
 
@@ -48,12 +59,18 @@ class RunPodPodManager
             return null;
         }
 
+        $lastRunAt = now()->toIso8601String();
         $this->writeState([
             'pod_id' => $created['id'],
-            'last_run_at' => now()->toIso8601String(),
+            'last_run_at' => $lastRunAt,
         ]);
 
         $url = $this->waitForPodUrl($created['id']);
+
+        $pod = $this->client->getPod($created['id'], $this->podParamsForStats());
+        if ($pod) {
+            $this->writeStats($pod, $lastRunAt);
+        }
 
         return [
             'pod_id' => $created['id'],
@@ -117,7 +134,12 @@ class RunPodPodManager
             return null;
         }
 
-        return $this->client->getPod($state['pod_id']);
+        $pod = $this->client->getPod($state['pod_id'], $this->podParamsForStats());
+        if ($pod) {
+            $this->writeStats($pod, $state['last_run_at'] ?? null);
+        }
+
+        return $pod;
     }
 
     public function getPodUrl(): ?string
@@ -244,7 +266,7 @@ class RunPodPodManager
     {
         for ($i = 0; $i < $maxAttempts; $i++) {
             sleep(5);
-            $pod = $this->client->getPod($podId);
+            $pod = $this->client->getPod($podId, []);
             if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
                 $url = $this->client->getPublicUrl($podId);
                 if ($url) {
@@ -285,5 +307,28 @@ class RunPodPodManager
         }
 
         return storage_path('app/'.ltrim($path, '/'));
+    }
+
+    protected function podParamsForStats(): array
+    {
+        return [
+            'includeMachine' => true,
+            'includeNetworkVolume' => true,
+        ];
+    }
+
+    protected function writeStats(array $pod, ?string $lastRunAt): void
+    {
+        if (! $this->statsWriter || ! $this->instanceName) {
+            return;
+        }
+
+        $podId = $pod['id'] ?? null;
+        if (! $podId) {
+            return;
+        }
+
+        $telemetry = $this->client->getPodTelemetry($podId);
+        $this->statsWriter->write($this->instanceName, $pod, $telemetry, $lastRunAt);
     }
 }

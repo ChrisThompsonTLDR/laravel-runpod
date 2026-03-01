@@ -185,6 +185,29 @@ php artisan runpod:guardrails
 php artisan runpod:guardrails --clear
 ```
 
+Refresh the stats file for dashboards (runs on schedule every 2 minutes):
+
+```bash
+php artisan runpod:stats
+php artisan runpod:stats pymupdf
+```
+
+Live terminal dashboard (requires `nunomaduro/termwind` and `xico2k/termwind-plugin-live`):
+
+```bash
+composer require nunomaduro/termwind xico2k/termwind-plugin-live
+php artisan runpod:dashboard pymupdf
+php artisan runpod:dashboard pymupdf --refresh=5
+```
+
+### Web dashboard (Livewire + Flux)
+
+When your app has Livewire and Flux installed, the RunPod dashboard is available at `/runpod/dashboard/{instance?}`. It reads from the stats file and polls every 15 seconds. Publish views to customize:
+
+```bash
+php artisan vendor:publish --tag=laravel-runpod-dashboard
+```
+
 ### Scheduled sync
 
 In `routes/console.php`:
