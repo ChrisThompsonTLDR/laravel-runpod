@@ -25,7 +25,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Build docs
-        run: php vendor/ChrisThompsonTLDR/Docit/artisan docit
+        run: php vendor/christhompsontldr/laravel-docit/bin/build-docs
 
       - name: Add .nojekyll
         run: touch docs/.nojekyll

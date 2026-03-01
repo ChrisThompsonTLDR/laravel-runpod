@@ -26,7 +26,7 @@
     "extra": {"laravel": {"providers": ["ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"]}},
     "minimum-stability": "stable",
     "require-dev": {
-        "christhompsontldr/docit": "dev-main",
+        "christhompsontldr/laravel-docit": "dev-main",
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0",
         "orchestra/testbench": "^9.0",
@@ -45,7 +45,7 @@
         "lint": "pint",
         "lint:fix": "pint",
         "analyse": "phpstan analyse",
-        "docit": "php vendor/ChrisThompsonTLDR/Docit/artisan docit"
+        "docit": "php vendor/christhompsontldr/laravel-docit/bin/build-docs"
     },
     "config": {"allow-plugins": {"pestphp/pest-plugin": true}}
 }
