@@ -79,6 +79,7 @@ return [
             'prune_schedule' => 'everyFiveMinutes',
             'pod' => [
                 'image_name' => env('RUNPOD_PYMUPDF_IMAGE', env('RUNPOD_POD_IMAGE')),
+                'network_volume_id' => env('RUNPOD_PYMUPDF_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
                 'gpu_count' => 0,
                 'name' => env('RUNPOD_PYMUPDF_POD_NAME', env('RUNPOD_POD_NAME', 'eyejay-pymupdf')),
                 'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
@@ -95,6 +96,7 @@ return [
         //     'prune_schedule' => 'everyFiveMinutes',
         //     'pod' => [
         //         'image_name' => env('RUNPOD_DOCLING_IMAGE'),
+        //         'network_volume_id' => env('RUNPOD_DOCLING_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
         //         'gpu_count' => 1,
         //         'name' => env('RUNPOD_DOCLING_POD_NAME', 'eyejay-docling'),
         //         'ports' => env('RUNPOD_POD_PORTS', '8000/http'),

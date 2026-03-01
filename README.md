@@ -34,6 +34,9 @@ RUNPOD_S3_ENDPOINT=https://s3api-eu-ro-1.runpod.io
 RUNPOD_S3_REGION=EU-RO-1
 RUNPOD_NETWORK_VOLUME_ID=
 
+# Per-instance overrides (e.g. RUNPOD_PYMUPDF_NETWORK_VOLUME_ID, RUNPOD_PYMUPDF_IMAGE)
+# See config/runpod.php instances[].pod for image_name, network_volume_id, etc.
+
 # Local path to sync files from (default: storage/app/runpod)
 RUNPOD_LOAD_PATH=
 
@@ -43,7 +46,7 @@ RUNPOD_REMOTE_PREFIX=data
 # Pod inactivity timeout in minutes before auto-prune
 RUNPOD_POD_INACTIVITY_MINUTES=2
 
-# Docker image for pod instances
+# Docker image (optional; config has per-instance defaults)
 RUNPOD_POD_IMAGE=
 ```
 
@@ -112,7 +115,7 @@ use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 $runPod = app(RunPod::class)->for(PymupdfJob::class);
 
 // File operations via the configured S3 disk
-$runPod->disk()->ensure($filename);
+$runPod->disk('runpod')->ensure($filename);
 
 // Start a named pod instance (configured in config/runpod.php)
 $pod = $runPod->instance('pymupdf')->start();
@@ -124,26 +127,26 @@ Or via the facade (add alias in `config/app.php`):
 ```php
 // 'RunPod' => ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod::class
 
-RunPod::for(self::class)->disk()->ensure($filename);
+RunPod::for(self::class)->disk('runpod')->ensure($filename);
 $pod = RunPod::instance('pymupdf')->start();
 ```
 
 ### Fluent file management
 
 ```php
-use ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod;
+use Illuminate\Support\Facades\Storage;
 
 // Ensure a file exists on RunPod (syncs from load path if missing)
-RunPod::disk()->ensure('document.pdf');
+Storage::runpod()->ensure('document.pdf');
 
 // Sync a specific file from load path
-RunPod::disk()->syncFrom('path/to/file.pdf');
+Storage::runpod()->syncFrom('path/to/file.pdf');
 
 // Put content directly
-RunPod::disk()->put('data/file.pdf', $contents);
+Storage::runpod()->put('data/file.pdf', $contents);
 
 // Check existence
-RunPod::disk()->exists('data/file.pdf');
+Storage::runpod()->exists('data/file.pdf');
 ```
 
 ### Artisan commands
@@ -229,6 +232,7 @@ Configure named pod or serverless instances in `config/runpod.php` under `instan
         'prune_schedule' => 'everyFiveMinutes',
         'pod' => [
             'image_name' => env('RUNPOD_PYMUPDF_IMAGE', env('RUNPOD_POD_IMAGE')),
+            'network_volume_id' => env('RUNPOD_PYMUPDF_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
             'gpu_count' => 0,
             'name' => env('RUNPOD_PYMUPDF_POD_NAME', 'eyejay-pymupdf'),
             'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
@@ -243,6 +247,7 @@ Configure named pod or serverless instances in `config/runpod.php` under `instan
         'prune_schedule' => 'everyFiveMinutes',
         'pod' => [
             'image_name' => env('RUNPOD_DOCLING_IMAGE'),
+            'network_volume_id' => env('RUNPOD_DOCLING_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
             'gpu_count' => 1,
             'name' => env('RUNPOD_DOCLING_POD_NAME', 'eyejay-docling'),
             // ... other overrides
@@ -283,7 +288,3 @@ Configure limits in `config/runpod.php` under `guardrails.limits`:
 ## Storage cost
 
 RunPod network volume pricing starts at $0.07/GB/month. See [RunPod pricing](https://www.runpod.io/pricing) for current rates.
-
-## Development
-
-On PHP 8.4 with Composer 2.7.x, use `./composer` or `make up` to avoid deprecation notices. Or upgrade Composer: `sudo composer self-update`.

@@ -30,7 +30,7 @@ class StartCommand extends Command
         $pod = $runPod->for($nickname)->instance($instance)->start();
 
         if (! $pod || ! ($pod['url'] ?? null)) {
-            $this->error('Failed to start pod. Check RUNPOD_POD_IMAGE, RUNPOD_NETWORK_VOLUME_ID, and RunPod API status.');
+            $this->error('Failed to start pod. Check config/runpod.php (image_name, network_volume_id per instance) and RunPod API status.');
 
             return self::FAILURE;
         }
