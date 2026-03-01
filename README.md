@@ -156,6 +156,12 @@ php artisan runpod:sync --path=document.pdf
 php artisan runpod:sync --path=subdir/
 ```
 
+Ensure a RunPod instance is running (create and wait if needed):
+
+```bash
+php artisan runpod:start pymupdf
+```
+
 Prune inactive pods:
 
 ```bash
