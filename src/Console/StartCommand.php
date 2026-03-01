@@ -11,7 +11,7 @@ class StartCommand extends Command
     protected $signature = 'runpod:start
         {instance : Instance name (e.g. pymupdf)}
         {--nickname=runpod:start : Nickname for last_run_at tracking}
-        {--v|verbose : Show API error details on failure}';
+        {--show-error : Show RunPod API error details on failure}';
 
     protected $description = 'Ensure a RunPod instance is running (create and wait if needed)';
 
@@ -19,7 +19,7 @@ class StartCommand extends Command
     {
         $instance = $this->argument('instance');
         $nickname = $this->option('nickname');
-        $verbose = $this->option('verbose');
+        $showError = $this->option('show-error');
 
         $instances = config('runpod.instances', []);
         if (! isset($instances[$instance])) {
@@ -35,7 +35,7 @@ class StartCommand extends Command
         if (! $pod || ! ($pod['url'] ?? null)) {
             $this->error('Failed to start pod. Check config/runpod.php (image_name, network_volume_id per instance) and RunPod API status.');
 
-            if ($verbose && ($error = $client->getLastError())) {
+            if ($showError && ($error = $client->getLastError())) {
                 $this->newLine();
                 $this->line('<comment>API response:</comment>');
                 $this->line($error);
