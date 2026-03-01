@@ -37,7 +37,7 @@ class StatsCommand extends Command
 
         $refreshed = 0;
         foreach ($toRefresh as $name => $config) {
-            $pod = RunPod::instance($name)->for('runpod:stats')->pod();
+            $pod = RunPod::instance($name)->pod();
             if ($pod) {
                 $refreshed++;
             }

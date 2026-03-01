@@ -107,10 +107,14 @@ class RunPod
 
     /**
      * Get full pod details from the RunPod API (includes networkVolumeId, desiredStatus, etc.).
+     * Does not update last_run_at (unlike for()->pod()).
      */
     public function pod(): ?array
     {
-        $this->podManager->setInstanceName($this->instanceName);
+        if ($this->instanceName) {
+            $this->podManager->setStatePath($this->resolveStatePath());
+            $this->podManager->setInstanceName($this->instanceName);
+        }
 
         return $this->podManager->getPodDetails();
     }
