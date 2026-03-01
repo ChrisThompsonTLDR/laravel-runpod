@@ -97,6 +97,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             $this->commands([
                 Console\SyncCommand::class,
                 Console\StartCommand::class,
+                Console\ListCommand::class,
                 Console\PruneCommand::class,
                 Console\GuardrailsCommand::class,
             ]);

@@ -68,14 +68,19 @@ return [
     | Named instances for different workloads. Each can be type 'pod' or 'serverless'.
     | Pods use prune_schedule; serverless uses idleTimeout (built-in).
     |
+    | Each instance's pod config is merged over the base 'pod' config. Override
+    | image_name, network_volume_id, etc. per instance when running different
+    | workloads (e.g. RUNPOD_PYMUPDF_IMAGE, RUNPOD_DOCLING_IMAGE).
+    |
     */
     'instances' => [
         'pymupdf' => [
             'type' => 'pod',
             'prune_schedule' => 'everyFiveMinutes',
             'pod' => [
+                'image_name' => env('RUNPOD_PYMUPDF_IMAGE', env('RUNPOD_POD_IMAGE')),
                 'gpu_count' => 0,
-                'name' => env('RUNPOD_POD_NAME', 'eyejay-pymupdf'),
+                'name' => env('RUNPOD_PYMUPDF_POD_NAME', env('RUNPOD_POD_NAME', 'eyejay-pymupdf')),
                 'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
                 'volume_mount_path' => env('RUNPOD_POD_VOLUME_MOUNT', '/workspace'),
                 'env' => [
@@ -84,6 +89,21 @@ return [
                 ],
             ],
         ],
+        // Example second instance - each has its own image, state file, prune schedule
+        // 'docling' => [
+        //     'type' => 'pod',
+        //     'prune_schedule' => 'everyFiveMinutes',
+        //     'pod' => [
+        //         'image_name' => env('RUNPOD_DOCLING_IMAGE'),
+        //         'gpu_count' => 1,
+        //         'name' => env('RUNPOD_DOCLING_POD_NAME', 'eyejay-docling'),
+        //         'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
+        //         'volume_mount_path' => env('RUNPOD_POD_VOLUME_MOUNT', '/workspace'),
+        //         'env' => [
+        //             ['key' => 'DOCLING_DATA_DIR', 'value' => '/workspace'],
+        //         ],
+        //     ],
+        // ],
     ],
 
     'pod' => [

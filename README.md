@@ -156,6 +156,12 @@ php artisan runpod:sync --path=document.pdf
 php artisan runpod:sync --path=subdir/
 ```
 
+List configured instances:
+
+```bash
+php artisan runpod:list
+```
+
 Ensure a RunPod instance is running (create and wait if needed):
 
 ```bash
@@ -212,9 +218,9 @@ class PymupdfJob implements ShouldQueue
 }
 ```
 
-### Named instances
+### Named instances (multiple pods/serverless)
 
-Configure named pod or serverless instances in `config/runpod.php` under `instances`. Each instance can be `type: pod` (persistent, scheduler-based prune) or `type: serverless` (idleTimeout built-in):
+Configure named pod or serverless instances in `config/runpod.php` under `instances`. Each instance has its own state file, prune schedule, and can override `image_name`, `network_volume_id`, etc. Use `php artisan runpod:list` to see configured instances.
 
 ```php
 'instances' => [
@@ -222,8 +228,9 @@ Configure named pod or serverless instances in `config/runpod.php` under `instan
         'type' => 'pod',
         'prune_schedule' => 'everyFiveMinutes',
         'pod' => [
+            'image_name' => env('RUNPOD_PYMUPDF_IMAGE', env('RUNPOD_POD_IMAGE')),
             'gpu_count' => 0,
-            'name' => env('RUNPOD_POD_NAME', 'eyejay-pymupdf'),
+            'name' => env('RUNPOD_PYMUPDF_POD_NAME', 'eyejay-pymupdf'),
             'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
             'volume_mount_path' => env('RUNPOD_POD_VOLUME_MOUNT', '/workspace'),
             'env' => [
@@ -231,8 +238,21 @@ Configure named pod or serverless instances in `config/runpod.php` under `instan
             ],
         ],
     ],
+    'docling' => [
+        'type' => 'pod',
+        'prune_schedule' => 'everyFiveMinutes',
+        'pod' => [
+            'image_name' => env('RUNPOD_DOCLING_IMAGE'),
+            'gpu_count' => 1,
+            'name' => env('RUNPOD_DOCLING_POD_NAME', 'eyejay-docling'),
+            // ... other overrides
+        ],
+    ],
 ],
 ```
+
+- **Start:** `php artisan runpod:start pymupdf` or `runpod:start docling`
+- **Prune:** `php artisan runpod:prune pymupdf` (or omit for default)
 
 ### Guardrails
 
