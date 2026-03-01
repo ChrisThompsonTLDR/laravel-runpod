@@ -109,7 +109,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
                 'bucket' => $config['bucket'],
                 'endpoint' => $config['endpoint'],
                 'use_path_style_endpoint' => true,
-                'throw' => false,
+                'throw' => true,
                 // RunPod S3 API does not support x-amz-acl; strip it from PutObject requests
                 'options' => [
                     'before_upload' => function ($command) {

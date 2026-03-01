@@ -3,6 +3,7 @@
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class RunPodPodManager
 {
@@ -45,13 +46,17 @@ class RunPodPodManager
         if ($state && ($state['pod_id'] ?? null)) {
             $pod = $this->client->getPod($state['pod_id'], $this->podParamsForStats());
             if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
-                $result = [
-                    'pod_id' => $state['pod_id'],
-                    'url' => $this->client->getPublicUrl($state['pod_id']),
-                ];
-                $this->writeStats($pod, $state['last_run_at'] ?? null);
+                $url = $this->client->getPublicUrl($state['pod_id']);
+                if ($this->verifyPodReachable($url)) {
+                    $result = [
+                        'pod_id' => $state['pod_id'],
+                        'url' => $url,
+                    ];
+                    $this->writeStats($pod, $state['last_run_at'] ?? null);
 
-                return $result;
+                    return $result;
+                }
+                $this->clearState();
             }
         }
 
@@ -67,10 +72,14 @@ class RunPodPodManager
             if ($state && ($state['pod_id'] ?? null)) {
                 $pod = $this->client->getPod($state['pod_id'], $this->podParamsForStats());
                 if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
-                    return [
-                        'pod_id' => $state['pod_id'],
-                        'url' => $this->client->getPublicUrl($state['pod_id']),
-                    ];
+                    $url = $this->client->getPublicUrl($state['pod_id']);
+                    if ($this->verifyPodReachable($url)) {
+                        return [
+                            'pod_id' => $state['pod_id'],
+                            'url' => $url,
+                        ];
+                    }
+                    $this->clearState();
                 }
             }
 
@@ -86,16 +95,22 @@ class RunPodPodManager
                 'last_run_at' => $lastRunAt,
             ]);
 
-            $url = $this->waitForPodUrl($created['id']);
+            $url = $this->waitForPodUrl($created['id']) ?? $this->client->getPublicUrl($created['id']);
 
             $pod = $this->client->getPod($created['id'], $this->podParamsForStats());
             if ($pod) {
                 $this->writeStats($pod, $lastRunAt);
             }
 
+            if (! $this->verifyPodReachable($url)) {
+                $this->clearState();
+
+                return null;
+            }
+
             return [
                 'pod_id' => $created['id'],
-                'url' => $url ?? $this->client->getPublicUrl($created['id']),
+                'url' => $url,
             ];
         } finally {
             $lock->release();
@@ -300,6 +315,37 @@ class RunPodPodManager
         }
 
         return null;
+    }
+
+    /**
+     * Verify the pod is reachable by hitting its health endpoint.
+     * Only runs if pod config has 'health_path' (e.g. '/health').
+     * Retries up to 6 times with 5 second delays.
+     */
+    protected function verifyPodReachable(string $url, int $retries = 6): bool
+    {
+        $healthPath = $this->podConfig['health_path'] ?? config('runpod.pod.health_path');
+        if (! $healthPath) {
+            return true;
+        }
+
+        $healthUrl = rtrim($url, '/').$healthPath;
+
+        for ($i = 0; $i < $retries; $i++) {
+            try {
+                $response = Http::timeout(10)->get($healthUrl);
+                if ($response->successful()) {
+                    return true;
+                }
+            } catch (\Throwable) {
+                // Pod may still be starting
+            }
+            if ($i < $retries - 1) {
+                sleep(5);
+            }
+        }
+
+        return false;
     }
 
     /**

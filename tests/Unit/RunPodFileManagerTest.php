@@ -55,13 +55,11 @@ it('syncFrom copies file from load path to remote', function () {
     expect(Storage::disk('runpod')->get('data/doc.pdf'))->toBe('content');
 });
 
-it('syncFrom returns self when file does not exist', function () {
+it('syncFrom throws when file does not exist', function () {
     $manager = new RunPodFileManager(Storage::disk('runpod'), storage_path('app/runpod'), 'data');
 
-    $result = $manager->syncFrom('/nonexistent.pdf');
-
-    expect($result)->toBe($manager);
-});
+    $manager->syncFrom('/nonexistent.pdf');
+})->throws(\RuntimeException::class, 'Local file does not exist');
 
 it('ensure syncs file when not present remotely', function () {
     $loadPath = storage_path('app/runpod');
@@ -75,6 +73,16 @@ it('ensure syncs file when not present remotely', function () {
 
     expect(Storage::disk('runpod')->get('data/doc.pdf'))->toBe('content');
 });
+
+it('ensure throws when local file does not exist', function () {
+    $loadPath = storage_path('app/runpod');
+    if (! is_dir($loadPath)) {
+        mkdir($loadPath, 0755, true);
+    }
+
+    $manager = new RunPodFileManager(Storage::disk('runpod'), $loadPath, 'data');
+    $manager->ensure('nonexistent.pdf');
+})->throws(\RuntimeException::class, 'Local file does not exist');
 
 it('ensure skips when file already exists remotely', function () {
     $loadPath = storage_path('app/runpod');
@@ -118,10 +126,8 @@ it('syncAll syncs all files from load path', function () {
         ->and(Storage::disk('runpod')->get('data/sub/b.txt'))->toBe('b');
 });
 
-it('syncAll returns self when load path is not directory', function () {
+it('syncAll throws when load path is not directory', function () {
     $manager = new RunPodFileManager(Storage::disk('runpod'), '/nonexistent/path', 'data');
 
-    $result = $manager->syncAll();
-
-    expect($result)->toBe($manager);
-});
+    $manager->syncAll();
+})->throws(\RuntimeException::class, 'Load path is not a directory');
