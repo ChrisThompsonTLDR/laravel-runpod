@@ -5,6 +5,7 @@ namespace ChrisThompsonTLDR\LaravelRunPod\Console;
 use Carbon\Carbon;
 use ChrisThompsonTLDR\LaravelRunPod\Exceptions\RunPodApiKeyNotConfiguredException;
 use ChrisThompsonTLDR\LaravelRunPod\RunPod;
+use ChrisThompsonTLDR\LaravelRunPod\RunPodClient;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodPodClient;
 use Illuminate\Console\Command;
 
@@ -17,9 +18,11 @@ class ListCommand extends Command
     public function handle(): int
     {
         try {
-            $client = $this->laravel->make(RunPodPodClient::class);
+            $podClient = $this->laravel->make(RunPodPodClient::class);
+            $restClient = $this->laravel->make(RunPodClient::class);
         } catch (RunPodApiKeyNotConfiguredException) {
-            $client = null;
+            $podClient = null;
+            $restClient = null;
         }
         $instances = config('runpod.instances', []);
 
@@ -36,7 +39,7 @@ class ListCommand extends Command
             $prune = $config['prune_schedule'] ?? ($type === 'pod' ? config('runpod.prune_schedule', 'everyFiveMinutes') : '-');
             $podConfig = array_merge($basePod, $config['pod'] ?? []);
             $image = $podConfig['image_name'] ?? '-';
-            $status = $type === 'pod' && $client ? $this->podStatus($name, $client) : '-';
+            $status = $type === 'pod' && $podClient ? $this->podStatus($name, $podClient) : '-';
 
             $rows[] = [
                 $name,
@@ -51,6 +54,16 @@ class ListCommand extends Command
             ['Instance', 'Type', 'Prune Schedule', 'Image', 'Status'],
             $rows
         );
+
+        $allPods = $restClient ? $this->getAllPodsWithTracking($restClient) : [];
+        if (! empty($allPods)) {
+            $this->newLine();
+            $this->line('All pods (from RunPod API):');
+            $this->table(
+                ['Name', 'ID', 'Status', 'Tracked'],
+                $allPods
+            );
+        }
 
         $this->newLine();
         $this->line('Start: <info>php artisan runpod:start [instance]</info>');
@@ -132,5 +145,88 @@ class ListCommand extends Command
         }
 
         return $base.'.'.$safe;
+    }
+
+    /**
+     * All pods from listPods(), with Tracked (Yes/No) per instance config.
+     *
+     * @return array<int, array{string, string, string, string}>
+     */
+    protected function getAllPodsWithTracking(RunPodClient $client): array
+    {
+        $pods = $client->listPods();
+        if (empty($pods)) {
+            return [];
+        }
+        if (! is_array($pods)) {
+            return [];
+        }
+        if (isset($pods['data']) && is_array($pods['data'])) {
+            $pods = $pods['data'];
+        }
+
+        $instanceNames = $this->instancePodNames();
+        $statePodIds = $this->statePodIdsByInstance();
+
+        $rows = [];
+        foreach ($pods as $pod) {
+            $id = $pod['id'] ?? null;
+            $name = $pod['name'] ?? '';
+            $status = $pod['desiredStatus'] ?? '-';
+            if (! $id) {
+                continue;
+            }
+
+            $tracked = null;
+            foreach ($instanceNames as $instance => $podName) {
+                if ($name !== $podName) {
+                    continue;
+                }
+                $stateId = $statePodIds[$instance] ?? null;
+                $tracked = ($id === $stateId) ? 'Yes' : 'No (orphan)';
+                break;
+            }
+            if ($tracked === null) {
+                continue;
+            }
+            $rows[] = [$name ?: '(no name)', $id, $status, $tracked];
+        }
+
+        return $rows;
+    }
+
+    /** @return array<string, string> instance => pod name */
+    protected function instancePodNames(): array
+    {
+        $out = [];
+        foreach (config('runpod.instances', []) as $name => $config) {
+            if (($config['type'] ?? 'pod') !== 'pod') {
+                continue;
+            }
+            $podName = $config['pod']['name'] ?? null;
+            if ($podName) {
+                $out[$name] = $podName;
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return array<string, string> instance => pod_id from state */
+    protected function statePodIdsByInstance(): array
+    {
+        $out = [];
+        foreach (array_keys(config('runpod.instances', [])) as $instance) {
+            $path = $this->resolveStatePath($instance);
+            if (! $path || ! is_file($path)) {
+                continue;
+            }
+            $state = json_decode((string) file_get_contents($path), true);
+            if (is_array($state) && ! empty($state['pod_id'])) {
+                $out[$instance] = $state['pod_id'];
+            }
+        }
+
+        return $out;
     }
 }

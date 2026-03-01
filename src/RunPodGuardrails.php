@@ -46,8 +46,11 @@ class RunPodGuardrails
         $limits = $this->getLimits();
         $podLimits = $limits['pods'] ?? [];
 
+        // Use fresh usage (not cached) so concurrent workers see real-time pod counts.
+        // Cached data can be stale and allow multiple pods when limit is 1.
+        $usage = $this->getUsageFresh();
+
         if (isset($podLimits['pods_max'])) {
-            $usage = $this->getUsage();
             $current = count($usage['pods'] ?? []);
             $limit = (int) $podLimits['pods_max'];
             if ($limit > 0 && $current >= $limit) {
@@ -56,7 +59,6 @@ class RunPodGuardrails
         }
 
         if (isset($podLimits['pods_running_max'])) {
-            $usage = $this->getUsage();
             $running = $this->countRunningPods($usage['pods'] ?? []);
             $limit = (int) $podLimits['pods_running_max'];
             if ($limit > 0 && $running >= $limit) {
@@ -69,28 +71,40 @@ class RunPodGuardrails
     {
         $cacheTtl = $this->getCacheTtlSeconds();
 
-        return Cache::remember(self::CACHE_KEY, $cacheTtl, function () {
-            $pods = $this->client->listPods();
-            $endpoints = $this->client->listEndpoints();
-            $networkVolumes = $this->client->listNetworkVolumes();
+        return Cache::remember(self::CACHE_KEY, $cacheTtl, fn () => $this->fetchUsageFromApi());
+    }
 
-            $workersTotal = 0;
-            foreach ($endpoints as $ep) {
-                $workersTotal += (int) ($ep['workersMax'] ?? 0);
-            }
+    /**
+     * Get usage from RunPod API without cache. Use when checking before pod creation
+     * so limits are enforced against real-time data, not stale cached counts.
+     */
+    public function getUsageFresh(): array
+    {
+        return $this->fetchUsageFromApi();
+    }
 
-            return [
-                'pods' => $pods,
-                'pods_count' => count($pods),
-                'pods_running_count' => $this->countRunningPods($pods),
-                'endpoints' => $endpoints,
-                'endpoints_count' => count($endpoints),
-                'workers_total' => $workersTotal,
-                'network_volumes' => $networkVolumes,
-                'network_volumes_count' => count($networkVolumes),
-                'storage_total_gb' => $this->sumVolumeGb($networkVolumes),
-            ];
-        });
+    protected function fetchUsageFromApi(): array
+    {
+        $pods = $this->client->listPods();
+        $endpoints = $this->client->listEndpoints();
+        $networkVolumes = $this->client->listNetworkVolumes();
+
+        $workersTotal = 0;
+        foreach ($endpoints as $ep) {
+            $workersTotal += (int) ($ep['workersMax'] ?? 0);
+        }
+
+        return [
+            'pods' => $pods,
+            'pods_count' => count($pods),
+            'pods_running_count' => $this->countRunningPods($pods),
+            'endpoints' => $endpoints,
+            'endpoints_count' => count($endpoints),
+            'workers_total' => $workersTotal,
+            'network_volumes' => $networkVolumes,
+            'network_volumes_count' => count($networkVolumes),
+            'storage_total_gb' => $this->sumVolumeGb($networkVolumes),
+        ];
     }
 
     public function clearCache(): void

@@ -134,6 +134,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
                 Console\ListCommand::class,
                 Console\InspectCommand::class,
                 Console\PruneCommand::class,
+                Console\FlushCommand::class,
                 Console\GuardrailsCommand::class,
                 Console\StatsCommand::class,
                 Console\DashboardCommand::class,

@@ -30,16 +30,22 @@ class PruneCommand extends Command
             $this->warn('Serverless workers still running; skipping stats flush.');
         }
 
-        if ($manager->pruneIfInactive()) {
+        $didPrune = $manager->pruneIfInactive();
+        if ($didPrune) {
             $this->info('Pod terminated due to inactivity.');
             if ($serverlessStopped) {
                 $statsWriter->flush($instance ?? 'default');
             }
-
-            return self::SUCCESS;
         }
 
-        $this->info('Pod still active or no pod to prune.');
+        $orphaned = $this->terminateOrphanedPods($client, $instance);
+        if ($orphaned > 0) {
+            $this->info("Terminated {$orphaned} orphaned pod(s) (not in state file).");
+        }
+
+        if (! $didPrune && $orphaned === 0) {
+            $this->info('Pod still active or no pod to prune.');
+        }
 
         return self::SUCCESS;
     }
@@ -81,5 +87,48 @@ class PruneCommand extends Command
         }
 
         return config('runpod.state_file', storage_path('app/runpod-pod-state.json'));
+    }
+
+    /**
+     * Terminate pods that match this instance's name but aren't in our state file.
+     * Catches orphaned pods from race conditions or manual creation.
+     */
+    protected function terminateOrphanedPods(RunPodClient $client, ?string $instance): int
+    {
+        if (! $instance) {
+            return 0;
+        }
+
+        $config = config("runpod.instances.{$instance}", []);
+        $podName = $config['pod']['name'] ?? null;
+        if (! $podName) {
+            return 0;
+        }
+
+        $statePath = $this->resolveStatePath($instance);
+        $statePodId = null;
+        if (is_file($statePath)) {
+            $state = json_decode((string) file_get_contents($statePath), true);
+            $statePodId = is_array($state) ? ($state['pod_id'] ?? null) : null;
+        }
+
+        $pods = $client->listPods();
+        $terminated = 0;
+        foreach ($pods as $pod) {
+            $id = $pod['id'] ?? null;
+            $name = $pod['name'] ?? '';
+            if (! $id || $name !== $podName) {
+                continue;
+            }
+            if ($id === $statePodId) {
+                continue;
+            }
+            if ($client->deletePod($id)) {
+                $this->line("Deleted orphaned pod: {$name} ({$id})");
+                $terminated++;
+            }
+        }
+
+        return $terminated;
     }
 }

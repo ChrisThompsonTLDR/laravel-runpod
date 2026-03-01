@@ -2,6 +2,8 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
+use Illuminate\Support\Facades\Cache;
+
 class RunPodPodManager
 {
     protected ?string $nickname = null;
@@ -53,29 +55,51 @@ class RunPodPodManager
             }
         }
 
-        $created = $this->createPod();
+        $lockKey = 'runpod:create:'.($this->instanceName ?? 'default');
+        $lock = Cache::lock($lockKey, 300);
 
-        if (! $created) {
+        if (! $lock->block(300)) {
             return null;
         }
 
-        $lastRunAt = now()->toIso8601String();
-        $this->writeState([
-            'pod_id' => $created['id'],
-            'last_run_at' => $lastRunAt,
-        ]);
+        try {
+            $state = $this->readState();
+            if ($state && ($state['pod_id'] ?? null)) {
+                $pod = $this->client->getPod($state['pod_id'], $this->podParamsForStats());
+                if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
+                    return [
+                        'pod_id' => $state['pod_id'],
+                        'url' => $this->client->getPublicUrl($state['pod_id']),
+                    ];
+                }
+            }
 
-        $url = $this->waitForPodUrl($created['id']);
+            $created = $this->createPod();
 
-        $pod = $this->client->getPod($created['id'], $this->podParamsForStats());
-        if ($pod) {
-            $this->writeStats($pod, $lastRunAt);
+            if (! $created) {
+                return null;
+            }
+
+            $lastRunAt = now()->toIso8601String();
+            $this->writeState([
+                'pod_id' => $created['id'],
+                'last_run_at' => $lastRunAt,
+            ]);
+
+            $url = $this->waitForPodUrl($created['id']);
+
+            $pod = $this->client->getPod($created['id'], $this->podParamsForStats());
+            if ($pod) {
+                $this->writeStats($pod, $lastRunAt);
+            }
+
+            return [
+                'pod_id' => $created['id'],
+                'url' => $url ?? $this->client->getPublicUrl($created['id']),
+            ];
+        } finally {
+            $lock->release();
         }
-
-        return [
-            'pod_id' => $created['id'],
-            'url' => $url ?? $this->client->getPublicUrl($created['id']),
-        ];
     }
 
     public function updateLastRunAt(): void
