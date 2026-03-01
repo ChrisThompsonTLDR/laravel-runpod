@@ -128,7 +128,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             if (! in_array($frequency, $allowed, true)) {
                 $frequency = 'everyFiveMinutes';
             }
-            Schedule::command('runpod:prune', ['instance' => $name])->{$frequency}();
+            Schedule::command('runpod:prune', [$name])->{$frequency}();
         }
 
         // Fallback: if no instances, use legacy single prune
