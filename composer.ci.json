@@ -1,13 +1,17 @@
 {
     "name": "christhompsontldr/laravel-runpod",
     "description": "Laravel integration for RunPod S3 storage and SoipoServices/runpod",
-    "keywords": ["laravel", "runpod", "s3", "storage"],
+    "keywords": [
+        "laravel",
+        "runpod",
+        "s3",
+        "storage"
+    ],
     "license": "MIT",
-    "authors": [{"name": "Chris Thompson", "email": "christhompsontldr@gmail.com"}],
-    "repositories": [
+    "authors": [
         {
-            "type": "vcs",
-            "url": "https://github.com/ChrisThompsonTLDR/laravel-docit"
+            "name": "Chris Thompson",
+            "email": "christhompsontldr@gmail.com"
         }
     ],
     "require": {
@@ -18,34 +22,46 @@
         "league/flysystem-aws-s3-v3": "^3.0"
     },
     "autoload": {
-        "psr-4": {"ChrisThompsonTLDR\\LaravelRunPod\\": "src/"}
+        "psr-4": {
+            "ChrisThompsonTLDR\\LaravelRunPod\\": "src/"
+        }
     },
     "autoload-dev": {
-        "psr-4": {"ChrisThompsonTLDR\\LaravelRunPod\\Tests\\": "tests/"}
+        "psr-4": {
+            "ChrisThompsonTLDR\\LaravelRunPod\\Tests\\": "tests/"
+        }
     },
-    "extra": {"laravel": {"providers": ["ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"]}},
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"
+            ]
+        }
+    },
     "minimum-stability": "stable",
     "require-dev": {
-        "christhompsontldr/docit": "dev-main",
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0",
-        "orchestra/testbench": "^9.0",
+        "orchestra/testbench": "^10.0",
         "laravel/pint": "^1.0",
-        "larastan/larastan": "^3.0",
+        "larastan/larastan": "^3.1",
         "pestphp/pest-plugin-arch": "^4.0",
         "pestphp/pest-plugin-mutate": "^4.0",
         "pestphp/pest-plugin-stressless": "^4.0",
         "pestphp/pest-plugin-type-coverage": "^4.0"
     },
     "scripts": {
-        "test": "pest --no-coverage",
+        "test": "pest",
         "test:coverage": "pest --coverage",
         "test:mutate": "pest --mutate",
         "test:arch": "pest tests/Architecture",
         "lint": "pint",
         "lint:fix": "pint",
-        "analyse": "phpstan analyse",
-        "docit": "php vendor/ChrisThompsonTLDR/Docit/artisan docit"
+        "analyse": "phpstan analyse"
     },
-    "config": {"allow-plugins": {"pestphp/pest-plugin": true}}
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
 }

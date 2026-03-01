@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: pcov
+
+      - name: Install dependencies (CI: exclude docit to avoid laravel-zero/PHPUnit conflict)
+        run: |
+          cp composer.ci.json composer.json
+          composer update --no-interaction --prefer-dist
+
+      - name: Run Pest
+        run: ./vendor/bin/pest
+
+      - name: Run Pest with coverage
+        run: ./vendor/bin/pest --coverage --min=80
+
+      - name: Run Pest type coverage
+        run: ./vendor/bin/pest --type-coverage --min=80
+
+      - name: Run Pest mutation testing (RunPod)
+        run: ./vendor/bin/pest --mutate --class=ChrisThompsonTLDR\\LaravelRunPod\\RunPod --covered-only --min=40

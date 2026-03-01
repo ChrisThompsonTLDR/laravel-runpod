@@ -211,20 +211,20 @@ $client-&gt;updateNetworkVolume($volumeId, ['name' =&gt; 'new-name']);
 $client-&gt;deleteNetworkVolume($volumeId);
 </code></pre>
 <h2 id="fluent-file-management" class="group w-fit scroll-mt-2">Fluent File Management<a href="#fluent-file-management" class="heading-permalink opacity-0 ml-1 transition-opacity duration-300 ease-linear px-1 group-hover:opacity-100 focus:opacity-100 group-hover:grayscale-0 focus:grayscale-0" title="Permalink">#</a></h2>
-<p>Use the <code>runpod</code> disk via <code>Storage</code> facade:</p>
-<pre><code class="language-php">use Illuminate\Support\Facades\Storage;
+<p>Use the <code>runpod</code> disk via <code>RunPod</code> facade:</p>
+<pre><code class="language-php">use ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod;
 
 // Ensure a file exists on RunPod (syncs from load path if missing)
-Storage::runpod()-&gt;ensure('document.pdf');
+RunPod::disk()-&gt;ensure('document.pdf');
 
 // Sync a specific file from load path
-Storage::runpod()-&gt;syncFrom('path/to/file.pdf');
+RunPod::disk()-&gt;syncFrom('path/to/file.pdf');
 
 // Put content directly
-Storage::runpod()-&gt;put('data/file.pdf', $contents);
+RunPod::disk()-&gt;put('data/file.pdf', $contents);
 
 // Check existence
-Storage::runpod()-&gt;exists('data/file.pdf');
+RunPod::disk()-&gt;exists('data/file.pdf');
 </code></pre>
 <h2 id="storage-cost" class="group w-fit scroll-mt-2">Storage Cost<a href="#storage-cost" class="heading-permalink opacity-0 ml-1 transition-opacity duration-300 ease-linear px-1 group-hover:opacity-100 focus:opacity-100 group-hover:grayscale-0 focus:grayscale-0" title="Permalink">#</a></h2>
 <p>RunPod network volume pricing starts at $0.07/GB/month. See <a href="https://www.runpod.io/pricing">RunPod pricing</a> for current rates.</p>

@@ -8,20 +8,28 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-php@v2
+
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - name: Install dependencies
-        run: composer install --no-interaction
-      - name: Build docs (via package)
-        run: vendor/bin/build-docs
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Build docs
+        run: php vendor/ChrisThompsonTLDR/Docit/artisan docit
+
       - name: Add .nojekyll
         run: touch docs/.nojekyll
+
       - name: Commit docs
         uses: EndBug/add-and-commit@v9
         with:

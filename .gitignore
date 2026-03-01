@@ -2,7 +2,10 @@
 composer.lock
 .phpunit.result.cache
 
-# hyde-jekyll package build artifacts
-packages/hyde-jekyll/vendor/
-packages/hyde-jekyll/node_modules/
-packages/hyde-jekyll/_site/
+# docit package build artifacts
+packages/docit/vendor/
+packages/docit/node_modules/
+packages/docit/_site/
+
+# Coverage reports
+build/coverage/
