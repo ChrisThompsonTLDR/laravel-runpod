@@ -42,7 +42,7 @@ class ListCommand extends Command
         );
 
         $this->newLine();
-        $this->line('Start: <info>php artisan runpod:start &lt;instance&gt;</info>');
+        $this->line('Start: <info>php artisan runpod:start [instance]</info>');
         $this->line('Prune: <info>php artisan runpod:prune [instance]</info>');
 
         return self::SUCCESS;
