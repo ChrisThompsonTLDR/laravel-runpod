@@ -42,18 +42,36 @@ return [
 
     'prune_schedule' => 'everyFiveMinutes',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Instances (pods/serverless)
+    |--------------------------------------------------------------------------
+    |
+    | Each instance controls its own pod config. The top-level 'pod' below is
+    | used only as fallback when an instance omits a key. Put all instance-
+    | specific values (inactivity_minutes, gpu_count, volume_in_gb, etc.) in
+    | the instance's 'pod' block.
+    |
+    */
     'instances' => [
         'pymupdf' => [
             'type' => 'pod',
             'prune_schedule' => 'everyFiveMinutes',
             'pod' => [
-                'image_name' => 'ghcr.io/christhompsontldr/docker-pymupdf-tesseract:latest',
-                'network_volume_id' => null,
-                'data_center_ids' => ['US-MD-1'],
+                'inactivity_minutes' => 2,
+                'gpu_type_id' => 'NVIDIA GeForce RTX 4090',
                 'gpu_count' => 0,
+                'volume_in_gb' => 50,
+                'container_disk_in_gb' => 50,
+                'min_vcpu_count' => 2,
+                'min_memory_in_gb' => 15,
+                'image_name' => 'ghcr.io/christhompsontldr/docker-pymupdf-tesseract:latest',
                 'name' => 'eyejay-pymupdf',
                 'ports' => '8000/http',
                 'volume_mount_path' => '/workspace',
+                'network_volume_id' => null,
+                'data_center_ids' => ['US-MD-1'],
+                'cloud_type' => 'SECURE',
                 'env' => [
                     ['key' => 'PYMUPDF_DATA_DIR', 'value' => '/workspace'],
                     ['key' => 'PYMUPDF_OUTPUT_DIR', 'value' => '/workspace/output'],
@@ -62,6 +80,11 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Default pod config (fallback when instance omits keys)
+    |--------------------------------------------------------------------------
+    */
     'pod' => [
         'inactivity_minutes' => 2,
         'gpu_type_id' => 'NVIDIA GeForce RTX 4090',
@@ -70,15 +93,5 @@ return [
         'container_disk_in_gb' => 50,
         'min_vcpu_count' => 2,
         'min_memory_in_gb' => 15,
-        'image_name' => 'ghcr.io/christhompsontldr/docker-pymupdf-tesseract:latest',
-        'name' => 'eyejay-pymupdf',
-        'ports' => '8000/http',
-        'volume_mount_path' => '/workspace',
-        'network_volume_id' => null,
-        'cloud_type' => 'SECURE',
-        'env' => [
-            ['key' => 'PYMUPDF_DATA_DIR', 'value' => '/workspace'],
-            ['key' => 'PYMUPDF_OUTPUT_DIR', 'value' => '/workspace/output'],
-        ],
     ],
 ];

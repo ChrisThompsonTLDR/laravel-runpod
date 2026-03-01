@@ -114,7 +114,7 @@ class RunPodPodManager
         }
 
         $lastRun = \Carbon\Carbon::parse($state['last_run_at']);
-        $idleMinutes = config('runpod.pod.inactivity_minutes', 2);
+        $idleMinutes = (int) ($this->podConfig['inactivity_minutes'] ?? config('runpod.pod.inactivity_minutes', 2));
 
         if ($lastRun->diffInMinutes(now(), false) < $idleMinutes) {
             return false;
@@ -329,6 +329,7 @@ class RunPodPodManager
         }
 
         $telemetry = $this->client->getPodTelemetry($podId);
-        $this->statsWriter->write($this->instanceName, $pod, $telemetry, $lastRunAt);
+        $inactivityMinutes = (int) ($this->podConfig['inactivity_minutes'] ?? config('runpod.pod.inactivity_minutes', 2));
+        $this->statsWriter->write($this->instanceName, $pod, $telemetry, $lastRunAt, $inactivityMinutes);
     }
 }

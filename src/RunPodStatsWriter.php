@@ -14,10 +14,12 @@ class RunPodStatsWriter
 
     /**
      * Write stats for an instance. Merges with existing, computes time_until_kill, writes JSON.
+     *
+     * @param  int|null  $inactivityMinutes  Instance-specific value; falls back to config when null
      */
-    public function write(string $instance, array $pod, ?array $telemetry, ?string $lastRunAt): void
+    public function write(string $instance, array $pod, ?array $telemetry, ?string $lastRunAt, ?int $inactivityMinutes = null): void
     {
-        $inactivityMinutes = config('runpod.pod.inactivity_minutes', 2);
+        $inactivityMinutes = $inactivityMinutes ?? config('runpod.pod.inactivity_minutes', 2);
         $timeUntilKill = $this->computeTimeUntilKill($lastRunAt, $inactivityMinutes);
 
         $data = [

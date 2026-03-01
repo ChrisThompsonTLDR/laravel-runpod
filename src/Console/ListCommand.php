@@ -4,6 +4,7 @@ namespace ChrisThompsonTLDR\LaravelRunPod\Console;
 
 use Carbon\Carbon;
 use ChrisThompsonTLDR\LaravelRunPod\Exceptions\RunPodApiKeyNotConfiguredException;
+use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodPodClient;
 use Illuminate\Console\Command;
 
@@ -76,7 +77,8 @@ class ListCommand extends Command
         }
 
         $lastRunAt = $state['last_run_at'] ?? null;
-        $inactivityMinutes = config('runpod.pod.inactivity_minutes', 2);
+        $podConfig = RunPod::mergedPodConfigForInstance($instance);
+        $inactivityMinutes = (int) ($podConfig['inactivity_minutes'] ?? config('runpod.pod.inactivity_minutes', 2));
 
         $startTime = $this->formatStartTime($pod);
         $shutdownIn = $this->formatShutdownIn($lastRunAt, $inactivityMinutes);

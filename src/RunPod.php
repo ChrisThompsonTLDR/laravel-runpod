@@ -144,6 +144,17 @@ class RunPod
         return $this;
     }
 
+    /**
+     * Get merged pod config for an instance (base pod + instance pod overrides).
+     * Use this when you need instance-specific values like inactivity_minutes.
+     */
+    public static function mergedPodConfigForInstance(string $instance): array
+    {
+        $config = config("runpod.instances.{$instance}", []);
+
+        return array_merge(config('runpod.pod', []), $config['pod'] ?? []);
+    }
+
     protected function getInstanceConfig(): array
     {
         $instances = config('runpod.instances', []);
