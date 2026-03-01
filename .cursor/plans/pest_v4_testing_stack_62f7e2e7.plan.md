@@ -13,6 +13,8 @@ isProject: false
 
 **Package context**: This is a Laravel package (not a full app). Testing uses `orchestra/testbench` to boot a minimal Laravel app.
 
+**Workbench**: [orchestral/workbench](https://github.com/orchestral/workbench) is the Workbench Companion for Laravel package development. Workbench functionality is accessible via `orchestra/testbench` without a separate package—use `vendor/bin/testbench workbench:install` to scaffold a local Laravel app for previewing and interacting with your package during development.
+
 ---
 
 ## 1. Composer Dependencies
@@ -27,7 +29,7 @@ Update [composer.json](composer.json):
 | ---------------------------------------- | ----------------------------------------------- |
 | `pestphp/pest` ^4.0                      | Pest v4 core                                    |
 | `pestphp/pest-plugin-laravel` ^4.0       | Laravel integration (get, post, actingAs, etc.) |
-| `orchestra/testbench` ^10.0              | Laravel package testing (Laravel 12)            |
+| `orchestra/testbench` ^9.0               | Laravel package testing (Laravel 11; ^10.0 requires Laravel 12, conflicts with docit) |
 | `laravel/pint` ^1.0                      | Code style fixer                                |
 | `larastan/larastan` ^3.0                 | PHPStan + Laravel rules                         |
 | `pestphp/pest-plugin-arch` ^4.0          | Architecture testing                            |
@@ -83,6 +85,14 @@ class TestCase extends Orchestra
 - Bootstrap: `vendor/autoload.php`
 - Test suite: `tests/`
 - XDebug/PCOV coverage config for `--coverage`
+
+**Workbench (optional)** – For interactive preview during development, scaffold a local Laravel app:
+
+```bash
+vendor/bin/testbench workbench:install
+```
+
+This creates a `workbench/` directory with a minimal Laravel app. Run `composer run serve` to preview the package. See [orchestral/workbench](https://github.com/orchestral/workbench) for the reference implementation.
 
 ---
 
@@ -225,7 +235,7 @@ Add to [composer.json](composer.json) `scripts`:
 Add minimal tests so the suite runs:
 
 - [tests/Unit/RunPodTest.php](tests/Unit/RunPodTest.php) – basic unit test
-- [tests/Feature/RunPodIntegrationTest.php](tests/Feature/RunPodIntegrationTest.php) – integration test using TestCase (mocked HTTP if needed)
+- [tests/Feature/RunPodIntegrationTest.php](tests/Feature/RunPodIntegrationTest.php) – integration test (skipped in CI: docit pulls laravel-zero which conflicts with PHPUnit 12; run with `pest tests/Feature` after removing docit to test locally)
 
 ---
 
@@ -241,6 +251,7 @@ Add minimal tests so the suite runs:
 | Create | [tests/Architecture/ArchTest.php](tests/Architecture/ArchTest.php) |
 | Create | [pint.json](pint.json)                                             |
 | Create | [phpstan.neon](phpstan.neon)                                       |
+| Create | [phpstan-baseline.neon](phpstan-baseline.neon) (generated)         |
 | Create | [.github/workflows/lint.yml](.github/workflows/lint.yml)           |
 | Create | [.github/workflows/static.yml](.github/workflows/static.yml)       |
 | Create | [.github/workflows/tests.yml](.github/workflows/tests.yml)         |

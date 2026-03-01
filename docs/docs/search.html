@@ -166,13 +166,13 @@
             <h1>Search the Laravel RunPod Documentation</h1>
     <style>#search-menu-button, .edit-page-link { display: none !important; }</style>
     <div class="not-prose">
-        <div id="hyde-search" x-data="hydeSearch">
-    <template id="search-highlight-template">
+        <div id="hyde-search-inline" x-data="hydeSearch">
+    <template id="search-highlight-template-inline">
         <mark class="bg-yellow-400 dark:bg-yellow-300"></mark>
     </template>
 
     <div class="relative">
-        <input type="search" name="search" id="search-input" x-model="searchTerm" @input="search()" placeholder="Search..." autocomplete="off" autofocus
+        <input type="search" name="search" id="search-input-inline" x-model="searchTerm" @input="search()" placeholder="Search..." autocomplete="off" autofocus
                 class="w-full rounded-sm text-base leading-normal bg-gray-100 dark:bg-gray-700 py-2 px-3 max-w-sm"
         >
 
@@ -208,6 +208,10 @@
  * @param {string} searchIndexUrl
  * @returns {Object}
  */
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^\${}()|[\]\\]/g, '\\\\$&');
+}
+
 function initHydeSearch(searchIndexUrl) {
     return {
         searchIndex: [],
@@ -236,6 +240,7 @@ function initHydeSearch(searchIndexUrl) {
                 return;
             }
 
+            const escapedTerm = escapeRegExp(this.searchTerm);
             const searchResults = this.searchIndex.filter(entry =>
                 entry.title.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
                 entry.content.toLowerCase().includes(this.searchTerm.toLowerCase())
@@ -248,17 +253,17 @@ function initHydeSearch(searchIndexUrl) {
             }
 
             const totalMatches = searchResults.reduce((acc, result) => {
-                return acc + (result.content.match(new RegExp(this.searchTerm, 'gi')) || []).length;
+                return acc + (result.content.match(new RegExp(escapedTerm, 'gi')) || []).length;
             }, 0);
 
             searchResults.sort((a, b) => {
-                return (b.content.match(new RegExp(this.searchTerm, 'gi')) || []).length
-                    - (a.content.match(new RegExp(this.searchTerm, 'gi')) || []).length;
+                return (b.content.match(new RegExp(escapedTerm, 'gi')) || []).length
+                    - (a.content.match(new RegExp(escapedTerm, 'gi')) || []).length;
             });
 
             this.results = searchResults.map(result => {
-                const matches = (result.content.match(new RegExp(this.searchTerm, 'gi')) || []).length;
-                const context = this.getSearchContext(result.content);
+                const matches = (result.content.match(new RegExp(escapedTerm, 'gi')) || []).length;
+                const context = this.getSearchContext(result.content, escapedTerm);
                 return { ...result, matches, context };
             });
 
@@ -268,15 +273,15 @@ function initHydeSearch(searchIndexUrl) {
             window.dispatchEvent(new CustomEvent('search-results-updated', { detail: { hasResults: true } }));
         },
 
-        getSearchContext(content) {
+        getSearchContext(content, escapedTerm) {
             const searchTermPos = content.toLowerCase().indexOf(this.searchTerm.toLowerCase());
             const sentenceStart = content.lastIndexOf('.', searchTermPos) + 1;
             const sentenceEnd = content.indexOf('.', searchTermPos) + 1;
             const sentence = content.substring(sentenceStart, sentenceEnd).trim();
-            const template = document.getElementById('search-highlight-template');
+            const template = this.$el.querySelector('template');
 
             return sentence.replace(
-                new RegExp(this.searchTerm, 'gi'),
+                new RegExp(escapedTerm, 'gi'),
                 match => {
                     const mark = template.content.querySelector('mark').cloneNode();
                     mark.textContent = match;
@@ -302,7 +307,7 @@ function initHydeSearch(searchIndexUrl) {
     <div id="support">
         <div id="sidebar-backdrop" x-cloak="" x-show="sidebarOpen" x-transition @click="sidebarOpen = false" title="Click to close sidebar" class="w-screen h-screen fixed top-0 left-0 cursor-pointer z-10 bg-black/50"></div>
                     <button id="search-menu-button" x-on:click="searchWindowOpen = ! searchWindowOpen"
-        :title="searchWindowOpen ? 'Close search window' : 'Open search window'; $nextTick(() => { setTimeout(() => { document.getElementById('search-input').focus(); }); });"
+        :title="searchWindowOpen ? 'Close search window' : 'Open search window'; $nextTick(() => { setTimeout(() => { document.getElementById('search-input-modal').focus(); }); });"
         class="absolute right-4 top-4 mr-4 z-10 opacity-75 hover:opacity-100 hidden md:block" aria-label="Toggle search window">
     <span x-show="! searchWindowOpen">
         Search <svg class="float-left mr-1 dark:fill-white" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" role="presentation">
@@ -316,7 +321,7 @@ function initHydeSearch(searchIndexUrl) {
     </span>
 </button>
 <button id="search-menu-button-mobile" x-on:click="searchWindowOpen = ! searchWindowOpen"
-        :title="searchWindowOpen ? 'Close search window' : 'Open search window'; $nextTick(() => { setTimeout(() => { document.getElementById('search-input').focus(); }); });"
+        :title="searchWindowOpen ? 'Close search window' : 'Open search window'; $nextTick(() => { setTimeout(() => { document.getElementById('search-input-modal').focus(); }); });"
         class="block md:hidden fixed bottom-4 right-4 z-10 rounded-full p-2 opacity-75 hover:opacity-100 fill-black bg-gray-200 dark:fill-gray-200 dark:bg-gray-700 print:hidden"
         aria-label="Toggle search menu">
     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" role="presentation">
@@ -342,13 +347,13 @@ function initHydeSearch(searchIndexUrl) {
         </header>
 
         <div class="grow">
-            <div id="hyde-search" x-data="hydeSearch">
-    <template id="search-highlight-template">
+            <div id="hyde-search-modal" x-data="hydeSearch">
+    <template id="search-highlight-template-modal">
         <mark class="bg-yellow-400 dark:bg-yellow-300"></mark>
     </template>
 
     <div class="relative">
-        <input type="search" name="search" id="search-input" x-model="searchTerm" @input="search()" placeholder="Search..." autocomplete="off" autofocus
+        <input type="search" name="search" id="search-input-modal" x-model="searchTerm" @input="search()" placeholder="Search..." autocomplete="off" autofocus
                 class="w-full rounded-sm text-base leading-normal bg-gray-100 dark:bg-gray-700 py-2 px-3"
         >
 
@@ -384,6 +389,10 @@ function initHydeSearch(searchIndexUrl) {
  * @param {string} searchIndexUrl
  * @returns {Object}
  */
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^\${}()|[\]\\]/g, '\\\\$&');
+}
+
 function initHydeSearch(searchIndexUrl) {
     return {
         searchIndex: [],
@@ -412,6 +421,7 @@ function initHydeSearch(searchIndexUrl) {
                 return;
             }
 
+            const escapedTerm = escapeRegExp(this.searchTerm);
             const searchResults = this.searchIndex.filter(entry =>
                 entry.title.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
                 entry.content.toLowerCase().includes(this.searchTerm.toLowerCase())
@@ -424,17 +434,17 @@ function initHydeSearch(searchIndexUrl) {
             }
 
             const totalMatches = searchResults.reduce((acc, result) => {
-                return acc + (result.content.match(new RegExp(this.searchTerm, 'gi')) || []).length;
+                return acc + (result.content.match(new RegExp(escapedTerm, 'gi')) || []).length;
             }, 0);
 
             searchResults.sort((a, b) => {
-                return (b.content.match(new RegExp(this.searchTerm, 'gi')) || []).length
-                    - (a.content.match(new RegExp(this.searchTerm, 'gi')) || []).length;
+                return (b.content.match(new RegExp(escapedTerm, 'gi')) || []).length
+                    - (a.content.match(new RegExp(escapedTerm, 'gi')) || []).length;
             });
 
             this.results = searchResults.map(result => {
-                const matches = (result.content.match(new RegExp(this.searchTerm, 'gi')) || []).length;
-                const context = this.getSearchContext(result.content);
+                const matches = (result.content.match(new RegExp(escapedTerm, 'gi')) || []).length;
+                const context = this.getSearchContext(result.content, escapedTerm);
                 return { ...result, matches, context };
             });
 
@@ -444,15 +454,15 @@ function initHydeSearch(searchIndexUrl) {
             window.dispatchEvent(new CustomEvent('search-results-updated', { detail: { hasResults: true } }));
         },
 
-        getSearchContext(content) {
+        getSearchContext(content, escapedTerm) {
             const searchTermPos = content.toLowerCase().indexOf(this.searchTerm.toLowerCase());
             const sentenceStart = content.lastIndexOf('.', searchTermPos) + 1;
             const sentenceEnd = content.indexOf('.', searchTermPos) + 1;
             const sentence = content.substring(sentenceStart, sentenceEnd).trim();
-            const template = document.getElementById('search-highlight-template');
+            const template = this.$el.querySelector('template');
 
             return sentence.replace(
-                new RegExp(this.searchTerm, 'gi'),
+                new RegExp(escapedTerm, 'gi'),
                 match => {
                     const mark = template.content.querySelector('mark').cloneNode();
                     mark.textContent = match;

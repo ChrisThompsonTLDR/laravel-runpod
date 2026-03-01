@@ -226,7 +226,7 @@ $client-&gt;deletePod($podId);
 $runPod = app(RunPod::class)-&gt;for(PymupdfJob::class);
 
 // File operations via the configured S3 disk
-$runPod-&gt;disk('runpod')-&gt;ensure($filename);
+$runPod-&gt;disk()-&gt;ensure($filename);
 
 // Start a named pod instance (configured in config/runpod.php)
 $pod = $runPod-&gt;instance('pymupdf')-&gt;start();

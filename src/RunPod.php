@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
  * Fluent, Laravel-esque API:
  *
  *   RunPod::for(PymupdfJob::class)
- *       ->disk('runpod')
+ *       ->disk()
  *       ->ensure($filename);
  *
  *   $pod = RunPod::for(PymupdfJob::class)
@@ -51,8 +51,10 @@ class RunPod
     /**
      * Get a file manager for the given disk, with Laravel filesystem methods.
      */
-    public function disk(string $disk): RunPodFileManager
+    public function disk(?string $disk = null): RunPodFileManager
     {
+        $disk = $disk ?? config('runpod.disk', 'runpod');
+
         $instanceConfig = $this->instanceName ? $this->getInstanceConfig() : [];
         $loadPath = $instanceConfig['load_path'] ?? config('runpod.load_path', storage_path('app/runpod'));
         $remotePrefix = $instanceConfig['remote_prefix'] ?? config('runpod.remote_prefix', 'data');

@@ -112,7 +112,7 @@ use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 $runPod = app(RunPod::class)->for(PymupdfJob::class);
 
 // File operations via the configured S3 disk
-$runPod->disk('runpod')->ensure($filename);
+$runPod->disk()->ensure($filename);
 
 // Start a named pod instance (configured in config/runpod.php)
 $pod = $runPod->instance('pymupdf')->start();
@@ -124,26 +124,26 @@ Or via the facade (add alias in `config/app.php`):
 ```php
 // 'RunPod' => ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod::class
 
-RunPod::for(self::class)->disk('runpod')->ensure($filename);
+RunPod::for(self::class)->disk()->ensure($filename);
 $pod = RunPod::instance('pymupdf')->start();
 ```
 
 ### Fluent file management
 
 ```php
-use Illuminate\Support\Facades\Storage;
+use ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod;
 
 // Ensure a file exists on RunPod (syncs from load path if missing)
-Storage::runpod()->ensure('document.pdf');
+RunPod::disk()->ensure('document.pdf');
 
 // Sync a specific file from load path
-Storage::runpod()->syncFrom('path/to/file.pdf');
+RunPod::disk()->syncFrom('path/to/file.pdf');
 
 // Put content directly
-Storage::runpod()->put('data/file.pdf', $contents);
+RunPod::disk()->put('data/file.pdf', $contents);
 
 // Check existence
-Storage::runpod()->exists('data/file.pdf');
+RunPod::disk()->exists('data/file.pdf');
 ```
 
 ### Artisan commands
@@ -283,3 +283,7 @@ Configure limits in `config/runpod.php` under `guardrails.limits`:
 ## Storage cost
 
 RunPod network volume pricing starts at $0.07/GB/month. See [RunPod pricing](https://www.runpod.io/pricing) for current rates.
+
+## Development
+
+On PHP 8.4 with Composer 2.7.x, use `./composer` or `make up` to avoid deprecation notices. Or upgrade Composer: `sudo composer self-update`.

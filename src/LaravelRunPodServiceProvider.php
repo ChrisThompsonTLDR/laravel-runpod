@@ -53,7 +53,6 @@ class LaravelRunPodServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerRunPodDisk();
-        $this->registerMacros();
         $this->registerCommands();
         $this->registerSchedule();
 
@@ -84,11 +83,6 @@ class LaravelRunPodServiceProvider extends ServiceProvider
                 'throw' => false,
             ],
         ]);
-    }
-
-    protected function registerMacros(): void
-    {
-        Macros\StorageMacros::register();
     }
 
     protected function registerCommands(): void

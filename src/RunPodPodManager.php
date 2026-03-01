@@ -28,12 +28,11 @@ class RunPodPodManager
         $this->podConfig = array_merge($base, $podConfig);
     }
 
-
     public function ensurePod(): ?array
     {
         $state = $this->readState();
 
-        if ($state && $state['pod_id'] ?? null) {
+        if ($state && ($state['pod_id'] ?? null)) {
             $pod = $this->client->getPod($state['pod_id']);
             if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
                 return [
