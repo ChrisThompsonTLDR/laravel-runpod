@@ -129,7 +129,7 @@ class RunPodPodManager
             return null;
         }
 
-        $gpuCount = $config['gpu_count'] ?? 0;
+        $gpuCount = (int) ($config['gpu_count'] ?? 0);
 
         // Convert env from [{key: K, value: V}] (config format) to {K: V} (REST format)
         $env = [];
@@ -145,12 +145,16 @@ class RunPodPodManager
             $ports = array_values(array_filter(array_map('trim', explode(',', $ports))));
         }
 
+        $containerDiskInGb = $config['container_disk_in_gb'] ?? 50;
+        if ($gpuCount === 0) {
+            $containerDiskInGb = min($containerDiskInGb, $config['cpu_container_disk_max_gb'] ?? 20);
+        }
+
         $input = [
             'name' => $config['name'] ?? 'runpod-pod',
             'imageName' => $config['image_name'],
-            'gpuCount' => $gpuCount,
             'volumeInGb' => $config['volume_in_gb'] ?? 50,
-            'containerDiskInGb' => $config['container_disk_in_gb'] ?? 50,
+            'containerDiskInGb' => $containerDiskInGb,
             'volumeMountPath' => $config['volume_mount_path'] ?? '/workspace',
             'ports' => $ports,
             'env' => $env,
@@ -160,6 +164,7 @@ class RunPodPodManager
         $minMemoryInGb = $config['min_memory_in_gb'] ?? 15;
 
         if ($gpuCount > 0) {
+            $input['gpuCount'] = $gpuCount;
             $gpuTypeId = $config['gpu_type_id'] ?? 'NVIDIA GeForce RTX 4090';
             $input['gpuTypeIds'] = [$gpuTypeId];
             $input['minRAMPerGPU'] = $minMemoryInGb;
@@ -167,8 +172,9 @@ class RunPodPodManager
         } else {
             $input['computeType'] = 'CPU';
             $input['vcpuCount'] = $vcpuCount;
-            $input['minVcpuCount'] = $vcpuCount;
-            $input['minMemoryInGb'] = $minMemoryInGb;
+            if (! empty($config['cpu_flavor_ids'])) {
+                $input['cpuFlavorIds'] = (array) $config['cpu_flavor_ids'];
+            }
         }
 
         if (! empty($config['network_volume_id'])) {

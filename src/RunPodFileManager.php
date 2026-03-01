@@ -66,6 +66,15 @@ class RunPodFileManager
         return $this;
     }
 
+    /**
+     * Get the storage path for a file (e.g. "data/doc.pdf").
+     * Use when calling pod APIs that expect the path as seen on the mounted volume.
+     */
+    public function path(string $path): string
+    {
+        return $this->remotePath($path);
+    }
+
     public function ensure(string $path): self
     {
         $localPath = $this->resolveLocalPath($path);
