@@ -18,10 +18,17 @@ use Illuminate\Support\Facades\Http;
  */
 class RunPodClient
 {
+    protected ?string $lastError = null;
+
     public function __construct(
         protected string $apiKey,
         protected string $baseUrl = 'https://rest.runpod.io/v1'
     ) {}
+
+    public function getLastError(): ?string
+    {
+        return $this->lastError;
+    }
 
     // -------------------------------------------------------------------------
     // Pods
@@ -60,9 +67,12 @@ class RunPodClient
      */
     public function createPod(array $input): ?array
     {
+        $this->lastError = null;
         $response = $this->http()->post('/pods', $input);
 
         if (! $response->successful()) {
+            $this->lastError = $response->body() ?: "HTTP {$response->status()}";
+
             return null;
         }
 
