@@ -195,8 +195,9 @@ class RunPodPodManager
             $input['networkVolumeId'] = $config['network_volume_id'];
         }
 
-        if (! empty($config['data_center_ids'])) {
-            $input['dataCenterIds'] = (array) $config['data_center_ids'];
+        $dataCenterIds = $this->filterValidDataCenterIds($config['data_center_ids'] ?? []);
+        if (! empty($dataCenterIds)) {
+            $input['dataCenterIds'] = $dataCenterIds;
         }
 
         return $this->client->createPod($input);
@@ -253,6 +254,26 @@ class RunPodPodManager
         }
 
         return null;
+    }
+
+    /**
+     * RunPod API only accepts specific data center IDs. Invalid values (e.g. deprecated US-MD-1)
+     * cause schema validation errors. Filter to valid IDs only; omit if none remain.
+     *
+     * @see https://rest.runpod.io/v1/pods schema
+     */
+    protected function filterValidDataCenterIds(array $ids): array
+    {
+        $valid = [
+            'AP-JP-1', 'CA-MTL-1', 'CA-MTL-2', 'CA-MTL-3', 'EU-CZ-1', 'EU-FR-1', 'EU-NL-1',
+            'EU-RO-1', 'EU-SE-1', 'EUR-IS-1', 'EUR-IS-2', 'EUR-IS-3', 'EUR-NO-1', 'OC-AU-1',
+            'US-CA-2', 'US-DE-1', 'US-GA-1', 'US-GA-2', 'US-IL-1', 'US-KS-2', 'US-KS-3',
+            'US-NC-1', 'US-TX-1', 'US-TX-3', 'US-TX-4', 'US-WA-1',
+        ];
+
+        $filtered = array_values(array_intersect((array) $ids, $valid));
+
+        return $filtered;
     }
 
     protected function resolveStatePath(): ?string
