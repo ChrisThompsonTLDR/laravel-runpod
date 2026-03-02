@@ -41,7 +41,8 @@ class RunPodGuardrails
      */
     public function checkBeforeCreatePod(): void
     {
-        $this->check();
+        // Only check pod limits. Storage (volume_size_gb_max) measures allocated capacity
+        // from the API, not actual usage, and creating a pod does not allocate new storage.
 
         $limits = $this->getLimits();
         $podLimits = $limits['pods'] ?? [];
