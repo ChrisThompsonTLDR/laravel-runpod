@@ -29,9 +29,9 @@ return [
     's3' => [
         'key' => env('RUNPOD_S3_ACCESS_KEY'),
         'secret' => env('RUNPOD_S3_SECRET_KEY'),
-        'region' => 'US-MD-1',
-        'bucket' => null,
-        'endpoint' => 'https://s3api-us-md-1.runpod.io',
+        'region' => env('RUNPOD_S3_REGION', 'US-MD-1'),
+        'bucket' => env('RUNPOD_NETWORK_VOLUME_ID'),  // Network volume ID = S3 bucket name
+        'endpoint' => env('RUNPOD_S3_ENDPOINT', 'https://s3api-us-md-1.runpod.io'),
     ],
 
     'api_key' => env('RUNPOD_API_KEY'),
