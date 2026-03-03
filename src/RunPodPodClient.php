@@ -66,9 +66,9 @@ class RunPodPodClient
     }
 
     /**
-     * Build the public proxy URL for an HTTP port on a pod.
-     * Parses the REST API's ports array (e.g. ["8000/http", "22/tcp"]).
-     * Checks both top-level 'ports' and 'runtime.ports' for API compatibility.
+     * Build the public URL for a port on a pod.
+     * For TCP ports: uses direct URL (publicIp + portMappings) since the proxy does not support TCP.
+     * For HTTP ports: uses RunPod proxy (https://{podId}-{port}.proxy.runpod.net).
      */
     public function getPublicUrl(string $podId, int $privatePort = 8000): ?string
     {
@@ -78,13 +78,29 @@ class RunPodPodClient
         }
 
         $ports = $pod['ports'] ?? $pod['runtime']['ports'] ?? [];
+        $publicIp = $pod['publicIp'] ?? null;
+        $portMappings = $pod['portMappings'] ?? [];
 
         foreach ($ports as $portSpec) {
-            if (is_string($portSpec) && str_contains($portSpec, '/') && str_ends_with($portSpec, '/http')) {
-                $portNum = (int) explode('/', $portSpec)[0];
-
-                return sprintf('https://%s-%d.proxy.runpod.net', $podId, $portNum ?: $privatePort);
+            if (! is_string($portSpec) || ! str_contains($portSpec, '/')) {
+                continue;
             }
+            [$portNum, $protocol] = explode('/', $portSpec, 2);
+            $portNum = (int) $portNum ?: $privatePort;
+
+            if (str_ends_with($protocol ?? '', '/http')) {
+                return sprintf('https://%s-%d.proxy.runpod.net', $podId, $portNum);
+            }
+
+            if (($protocol === 'tcp' || str_ends_with($protocol ?? '', '/tcp')) && $publicIp && isset($portMappings[(string) $portNum])) {
+                $mappedPort = (int) $portMappings[(string) $portNum];
+
+                return sprintf('http://%s:%d', $publicIp, $mappedPort);
+            }
+        }
+
+        if ($publicIp && isset($portMappings[(string) $privatePort])) {
+            return sprintf('http://%s:%d', $publicIp, (int) $portMappings[(string) $privatePort]);
         }
 
         return sprintf('https://%s-%d.proxy.runpod.net', $podId, $privatePort);
