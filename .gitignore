@@ -1,3 +1,11 @@
 /vendor/
 composer.lock
 .phpunit.result.cache
+
+# docit package build artifacts
+packages/docit/vendor/
+packages/docit/node_modules/
+packages/docit/_site/
+
+# Coverage reports
+build/coverage/

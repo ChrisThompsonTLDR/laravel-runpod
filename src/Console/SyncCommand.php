@@ -2,8 +2,8 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod\Console;
 
+use ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 
 class SyncCommand extends Command
 {
@@ -17,11 +17,28 @@ class SyncCommand extends Command
         $path = $this->option('path');
 
         if ($path) {
-            $fullPath = rtrim(config('runpod.load_path'), '/').'/'.ltrim($path, '/');
+            if (str_contains($path, '..')) {
+                $this->error('Invalid path: path traversal is not allowed.');
+
+                return self::FAILURE;
+            }
+
+            $basePath = rtrim(config('runpod.load_path'), '/');
+            $fullPath = $basePath.'/'.ltrim(str_replace('\\', '/', $path), '/');
+            $resolvedFull = realpath($fullPath);
+            $resolvedBase = realpath($basePath) ?: $basePath;
+
+            if ($resolvedFull !== false && ! str_starts_with($resolvedFull, $resolvedBase.DIRECTORY_SEPARATOR) && $resolvedFull !== $resolvedBase) {
+                $this->error('Invalid path: path must be within the configured load path.');
+
+                return self::FAILURE;
+            }
+
+            $fullPath = $resolvedFull ?: $fullPath;
 
             if (is_file($fullPath)) {
-                Storage::runpod()->syncFrom($fullPath);
-                $this->info("Synced: {$path}");
+                RunPod::disk()->syncFrom($fullPath);
+                $this->info('Synced: '.$path);
             } elseif (is_dir($fullPath)) {
                 $files = new \RecursiveIteratorIterator(
                     new \RecursiveDirectoryIterator($fullPath, \RecursiveDirectoryIterator::SKIP_DOTS),
@@ -30,7 +47,7 @@ class SyncCommand extends Command
                 $count = 0;
                 foreach ($files as $file) {
                     if ($file->isFile()) {
-                        Storage::runpod()->syncFrom($file->getPathname());
+                        RunPod::disk()->syncFrom($file->getPathname());
                         $count++;
                     }
                 }
@@ -41,7 +58,7 @@ class SyncCommand extends Command
                 return self::FAILURE;
             }
         } else {
-            Storage::runpod()->syncAll();
+            RunPod::disk()->syncAll();
             $this->info('Synced entire load path to RunPod.');
         }
 

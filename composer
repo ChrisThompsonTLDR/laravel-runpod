@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Wrapper to suppress PHP 8.4 deprecation notices from Composer 2.7.x.
+# Remove this once Composer is upgraded: sudo composer self-update
+/usr/local/bin/composer "$@" 2>&1 | grep -v 'Deprecation Notice'
+exit "${PIPESTATUS[0]}"

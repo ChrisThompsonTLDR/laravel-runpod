@@ -3,7 +3,6 @@
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
-use League\Flysystem\UnableToCheckFileExistence;
 
 class RunPodFileManager
 {
@@ -35,7 +34,7 @@ class RunPodFileManager
         $fullPath = $this->resolveLocalPath($localPath);
 
         if (! is_file($fullPath)) {
-            return $this;
+            throw new \RuntimeException("Local file does not exist: {$fullPath}");
         }
 
         $relativePath = $this->relativeToLoadPath($fullPath);
@@ -49,7 +48,7 @@ class RunPodFileManager
     public function syncAll(): self
     {
         if (! is_dir($this->loadPath)) {
-            return $this;
+            throw new \RuntimeException("Load path is not a directory: {$this->loadPath}");
         }
 
         $files = new \RecursiveIteratorIterator(
@@ -66,25 +65,27 @@ class RunPodFileManager
         return $this;
     }
 
+    /**
+     * Get the storage path for a file (e.g. "data/doc.pdf").
+     * Use when calling pod APIs that expect the path as seen on the mounted volume.
+     */
+    public function path(string $path): string
+    {
+        return $this->remotePath($path);
+    }
+
     public function ensure(string $path): self
     {
         $localPath = $this->resolveLocalPath($path);
 
         if (! is_file($localPath)) {
-            return $this;
+            throw new \RuntimeException("Local file does not exist: {$localPath}");
         }
 
         $relativePath = $this->relativeToLoadPath($localPath);
         $remotePath = $this->remotePrefix.'/'.$relativePath;
 
-        $exists = false;
-        try {
-            $exists = $this->disk->exists($remotePath);
-        } catch (UnableToCheckFileExistence $e) {
-            // S3/network unreachable or misconfigured; assume missing and sync
-        }
-
-        if (! $exists) {
+        if (! $this->disk->exists($remotePath)) {
             $this->disk->put($remotePath, file_get_contents($localPath));
         }
 

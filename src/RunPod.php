@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Storage;
  *
  * Fluent, Laravel-esque API:
  *
- *   RunPod::refresh(PymupdfJob::class)
- *       ->disk('runpod')
+ *   RunPod::for(PymupdfJob::class)
+ *       ->disk()
  *       ->ensure($filename);
  *
- *   $pod = RunPod::refresh(PymupdfJob::class)
+ *   $pod = RunPod::for(PymupdfJob::class)
  *       ->instance('pymupdf')
  *       ->start();
  *
@@ -38,7 +38,7 @@ class RunPod
      * Set the "nickname" (cache key) for this pod's state.
      * Used for per-consumer last_run_at tracking and prune scheduling.
      */
-    public function refresh(string $nickname): static
+    public function for(string $nickname): static
     {
         $this->nickname = $nickname;
         $this->podManager->setNickname($nickname);
@@ -51,8 +51,10 @@ class RunPod
     /**
      * Get a file manager for the given disk, with Laravel filesystem methods.
      */
-    public function disk(string $disk): RunPodFileManager
+    public function disk(?string $disk = null): RunPodFileManager
     {
+        $disk = $disk ?? config('runpod.disk', 'runpod');
+
         $instanceConfig = $this->instanceName ? $this->getInstanceConfig() : [];
         $loadPath = $instanceConfig['load_path'] ?? config('runpod.load_path', storage_path('app/runpod'));
         $remotePrefix = $instanceConfig['remote_prefix'] ?? config('runpod.remote_prefix', 'data');
@@ -83,6 +85,7 @@ class RunPod
         $podConfig = array_merge(config('runpod.pod', []), $config['pod'] ?? []);
         $this->podManager->configure($podConfig);
         $this->podManager->setStatePath($config['state_file'] ?? $this->resolveStatePath());
+        $this->podManager->setInstanceName($this->instanceName);
 
         if ($this->nickname) {
             $this->podManager->updateLastRunAt();
@@ -100,6 +103,20 @@ class RunPod
         }
 
         return $pod;
+    }
+
+    /**
+     * Get full pod details from the RunPod API (includes networkVolumeId, desiredStatus, etc.).
+     * Does not update last_run_at (unlike for()->pod()).
+     */
+    public function pod(): ?array
+    {
+        if ($this->instanceName) {
+            $this->podManager->setStatePath($this->resolveStatePath());
+            $this->podManager->setInstanceName($this->instanceName);
+        }
+
+        return $this->podManager->getPodDetails();
     }
 
     /**
@@ -129,6 +146,17 @@ class RunPod
         // Pod: prune_schedule comes from config/runpod.php instances[].prune_schedule
 
         return $this;
+    }
+
+    /**
+     * Get merged pod config for an instance (base pod + instance pod overrides).
+     * Use this when you need instance-specific values like inactivity_minutes.
+     */
+    public static function mergedPodConfigForInstance(string $instance): array
+    {
+        $config = config("runpod.instances.{$instance}", []);
+
+        return array_merge(config('runpod.pod', []), $config['pod'] ?? []);
     }
 
     protected function getInstanceConfig(): array

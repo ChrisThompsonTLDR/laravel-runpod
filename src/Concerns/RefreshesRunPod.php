@@ -8,7 +8,7 @@ use ChrisThompsonTLDR\LaravelRunPod\RunPod;
  * Trait for jobs that use RunPod. Automatically refreshes last_run_at after
  * pod work completes, keeping the pod alive for the prune timer.
  *
- * Use withRunPodRefresh() to wrap your post-pod work; refresh fires in finally.
+ * Use withRunPodRefresh() to wrap your post-pod work; for() fires in finally.
  */
 trait RefreshesRunPod
 {
@@ -21,7 +21,7 @@ trait RefreshesRunPod
     }
 
     /**
-     * Wrap RunPod work; refresh is called automatically when the callback finishes.
+     * Wrap RunPod work; for() is called automatically when the callback finishes.
      */
     protected function withRunPodRefresh(callable $work): mixed
     {
@@ -30,7 +30,7 @@ trait RefreshesRunPod
         } finally {
             app(RunPod::class)
                 ->instance($this->runPodInstance())
-                ->refresh(static::class);
+                ->for(static::class);
         }
     }
 }
