@@ -7,31 +7,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    uses: ChrisThompsonTLDR/laravel-docit/.github/workflows/build-docs.yml@main
+    with:
+      docit-path: vendor/christhompsontldr/laravel-docit
+      output-dir: docs/dist
+      commit: false
+      base-path: /laravel-runpod
     permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Build docs
-        run: php vendor/christhompsontldr/laravel-docit/bin/build-docs
-
-      - name: Add .nojekyll
-        run: touch docs/.nojekyll
-
-      - name: Commit docs
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: docs
-          message: Build docs site
+      contents: read
+      pages: write
+      id-token: write
