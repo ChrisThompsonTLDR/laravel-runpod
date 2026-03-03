@@ -14,6 +14,6 @@ jobs:
       commit: false
       base-path: /laravel-runpod
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
