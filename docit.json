@@ -1,0 +1,24 @@
+{
+  "order": [
+    "index",
+    "installation",
+    "configuration",
+    "usage",
+    "artisan-commands",
+    "guardrails",
+    "dashboards",
+    "storage"
+  ],
+  "editBaseUrl": "https://github.com/ChrisThompsonTLDR/laravel-runpod/edit/main",
+  "siteName": "Laravel RunPod",
+  "labels": {
+    "index": "Guide",
+    "installation": "Installation",
+    "configuration": "Configuration",
+    "usage": "Usage",
+    "artisan-commands": "Artisan Commands",
+    "guardrails": "Guardrails",
+    "dashboards": "Dashboards",
+    "storage": "Storage"
+  }
+}
