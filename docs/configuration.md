@@ -8,15 +8,13 @@ php artisan vendor:publish --tag=laravel-runpod-config
 
 ## Top-Level Options
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `disk` | string | `runpod` | Laravel filesystem disk name for S3 storage |
-| `load_path` | string | `storage_path('app/runpod')` | Local directory to sync files from |
-| `remote_prefix` | string | `data` | S3 prefix; maps to `/workspace/data/` on pods |
-| `api_key` | string | `env('RUNPOD_API_KEY')` | RunPod REST API key |
-| `state_file` | string | `storage_path('app/runpod-pod-state.json')` | Base path for pod state JSON |
-| `stats_file` | string | `storage_path('app/runpod-stats.json')` | Path for dashboard stats JSON |
-| `prune_schedule` | string | `everyFiveMinutes` | Default prune frequency when no instances |
+- **disk** (string, default: `runpod`) — Laravel filesystem disk name for S3 storage
+- **load_path** (string, default: `storage_path('app/runpod')`) — Local directory to sync files from
+- **remote_prefix** (string, default: `data`) — S3 prefix; maps to `/workspace/data/` on pods
+- **api_key** (string, default: `env('RUNPOD_API_KEY')`) — RunPod REST API key
+- **state_file** (string, default: `storage_path('app/runpod-pod-state.json')`) — Base path for pod state JSON
+- **stats_file** (string, default: `storage_path('app/runpod-stats.json')`) — Path for dashboard stats JSON
+- **prune_schedule** (string, default: `everyFiveMinutes`) — Default prune frequency when no instances
 
 ## S3 Configuration
 
@@ -100,32 +98,28 @@ Named pod/serverless instances live under `instances`:
 
 ### Instance Options
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `type` | string | `pod` or `serverless` |
-| `prune_schedule` | string | Laravel schedule method (e.g. `everyFiveMinutes`) |
-| `state_file` | string | Override state file path for this instance |
-| `load_path` | string | Override load path for file sync |
-| `remote_prefix` | string | Override S3 prefix |
-| `pod` | array | Pod creation parameters (merged with `config/runpod.pod`) |
+- **type** (string) — `pod` or `serverless`
+- **prune_schedule** (string) — Laravel schedule method (e.g. `everyFiveMinutes`)
+- **state_file** (string) — Override state file path for this instance
+- **load_path** (string) — Override load path for file sync
+- **remote_prefix** (string) — Override S3 prefix
+- **pod** (array) — Pod creation parameters (merged with `config/runpod.pod`)
 
 ### Pod Creation Parameters
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `image_name` | string | Docker image (required) |
-| `network_volume_id` | string | Attach this network volume |
-| `name` | string | Pod name in RunPod |
-| `gpu_count` | int | Number of GPUs (0 = CPU) |
-| `gpu_type_id` | string | GPU type when gpu_count > 0 |
-| `volume_in_gb` | int | Ephemeral volume size |
-| `container_disk_in_gb` | int | Container disk size |
-| `volume_mount_path` | string | Mount path (e.g. `/workspace`) |
-| `ports` | string | Comma-separated, e.g. `8000/http,22/tcp` |
-| `env` | array | `[['key' => 'X', 'value' => 'Y'], ...]` |
-| `inactivity_minutes` | int | Minutes idle before prune |
-| `data_center_ids` | array | Preferred datacenters |
-| `health_path` | string | Health check path (e.g. `/health`) |
+- **image_name** (string) — Docker image (required)
+- **network_volume_id** (string) — Attach this network volume
+- **name** (string) — Pod name in RunPod
+- **gpu_count** (int) — Number of GPUs (0 = CPU)
+- **gpu_type_id** (string) — GPU type when gpu_count > 0
+- **volume_in_gb** (int) — Ephemeral volume size
+- **container_disk_in_gb** (int) — Container disk size
+- **volume_mount_path** (string) — Mount path (e.g. `/workspace`)
+- **ports** (string) — Comma-separated, e.g. `8000/http,22/tcp`
+- **env** (array) — `[['key' => 'X', 'value' => 'Y'], ...]`
+- **inactivity_minutes** (int) — Minutes idle before prune
+- **data_center_ids** (array) — Preferred datacenters
+- **health_path** (string) — Health check path (e.g. `/health`)
 
 ### State and Stats Paths
 

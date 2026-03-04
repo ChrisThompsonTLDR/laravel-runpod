@@ -9,3 +9,6 @@ packages/docit/_site/
 
 # Coverage reports
 build/coverage/
+
+# Docit build output
+docs/dist/
