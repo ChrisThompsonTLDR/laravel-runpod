@@ -36,12 +36,15 @@ class RunPodClient
 
     /**
      * List all pods. Optional filters: computeType, cpuFlavorId, dataCenterId, etc.
+     *
+     * Normalizes response: RunPod API may return a direct array or { data: [...] }.
      */
     public function listPods(array $filters = []): array
     {
         $response = $this->http()->get('/pods', $filters);
+        $data = $response->successful() ? ($response->json() ?? []) : [];
 
-        return $response->successful() ? ($response->json() ?? []) : [];
+        return $this->normalizeListResponse($data);
     }
 
     /**
@@ -179,12 +182,15 @@ class RunPodClient
 
     /**
      * List all serverless endpoints.
+     *
+     * Normalizes response: RunPod API may return a direct array or { data: [...] }.
      */
     public function listEndpoints(): array
     {
         $response = $this->http()->get('/endpoints');
+        $data = $response->successful() ? ($response->json() ?? []) : [];
 
-        return $response->successful() ? ($response->json() ?? []) : [];
+        return $this->normalizeListResponse($data);
     }
 
     /**
@@ -491,6 +497,24 @@ class RunPodClient
         $response = $this->http()->get('/billing/networkvolumes', $params);
 
         return $response->successful() ? ($response->json() ?? []) : [];
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Normalize list API responses. RunPod may return a direct array or { data: [...] }.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function normalizeListResponse(array $data): array
+    {
+        if (isset($data['data']) && is_array($data['data'])) {
+            return $data['data'];
+        }
+
+        return $data;
     }
 
     // -------------------------------------------------------------------------
