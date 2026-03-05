@@ -1,12 +1,12 @@
 
 
 Code Coverage Report:
-  2026-02-28 18:18:52
+  2026-03-05 01:24:45
 
  Summary:
-  Classes:  0.00% (0/16)
-  Methods:  4.46% (5/112)
-  Lines:    7.74% (47/607)
+  Classes:  0.00% (0/26)
+  Methods:  8.12% (13/160)
+  Lines:    5.75% (69/1199)
 
-ChrisThompsonTLDR\LaravelRunPod\RunPodGuardrails
-  Methods:  35.71% ( 5/14)   Lines:  56.63% ( 47/ 83)
+ChrisThompsonTLDR\LaravelRunPod\RunPodClient
+  Methods:  37.14% (13/35)   Lines:  53.91% ( 69/128)
