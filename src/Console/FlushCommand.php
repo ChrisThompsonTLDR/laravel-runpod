@@ -30,6 +30,12 @@ class FlushCommand extends Command
                 continue;
             }
             $name = $pod['name'] ?? $id;
+            $status = $pod['desiredStatus'] ?? null;
+            if ($status === 'RUNNING') {
+                $this->line("Stopping pod: {$name} ({$id})...");
+                $client->stopPod($id);
+                sleep(3);
+            }
             if ($client->deletePod($id)) {
                 $this->line("Deleted pod: {$name} ({$id})");
                 $podsDeleted++;
