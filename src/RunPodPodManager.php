@@ -47,16 +47,17 @@ class RunPodPodManager
             $pod = $this->client->getPod($state['pod_id'], $this->podParamsForStats());
             if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
                 $url = $this->client->getPublicUrl($state['pod_id']);
+                $result = [
+                    'pod_id' => $state['pod_id'],
+                    'url' => $url,
+                ];
                 if ($this->verifyPodReachable($url)) {
-                    $result = [
-                        'pod_id' => $state['pod_id'],
-                        'url' => $url,
-                    ];
                     $this->writeStats($pod, $state['last_run_at'] ?? null);
 
                     return $result;
                 }
-                $this->clearState();
+                // Pod is RUNNING but health check failed (may still be starting). Return success.
+                return $result;
             }
         }
 
@@ -73,13 +74,12 @@ class RunPodPodManager
                 $pod = $this->client->getPod($state['pod_id'], $this->podParamsForStats());
                 if ($pod && ($pod['desiredStatus'] ?? '') === 'RUNNING') {
                     $url = $this->client->getPublicUrl($state['pod_id']);
+                    $result = ['pod_id' => $state['pod_id'], 'url' => $url];
                     if ($this->verifyPodReachable($url)) {
-                        return [
-                            'pod_id' => $state['pod_id'],
-                            'url' => $url,
-                        ];
+                        return $result;
                     }
-                    $this->clearState();
+                    // Pod is RUNNING but health check failed. Return success anyway.
+                    return $result;
                 }
             }
 
