@@ -6,6 +6,7 @@ use ChrisThompsonTLDR\LaravelRunPod\RunPodClient;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodGuardrails;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodStatsWriter;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 
 class FlushCommand extends Command
 {
@@ -19,6 +20,8 @@ class FlushCommand extends Command
         if (! $this->option('force') && ! $this->confirm('This will delete ALL pods and serverless endpoints. Continue?')) {
             return self::SUCCESS;
         }
+
+        $this->clearRunPodQueues();
 
         $podsDeleted = 0;
         $endpointsDeleted = 0;
@@ -67,6 +70,24 @@ class FlushCommand extends Command
         $this->info("Flush complete: {$podsDeleted} pod(s), {$endpointsDeleted} endpoint(s) deleted. State, stats, and guardrails cache cleared.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Clear RunPod job queues so Horizon doesn't immediately re-create pods.
+     */
+    protected function clearRunPodQueues(): void
+    {
+        if (! config('queue.connections.redis')) {
+            return;
+        }
+
+        foreach (array_keys(config('runpod.instances', [])) as $instance) {
+            try {
+                Artisan::call('queue:clear', ['redis', '--queue' => $instance, '--force' => true]);
+            } catch (\Throwable) {
+                // Queue may not exist
+            }
+        }
     }
 
     protected function clearStateFiles(): void
