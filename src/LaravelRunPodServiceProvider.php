@@ -13,20 +13,13 @@ class LaravelRunPodServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/runpod.php', 'runpod');
 
         $this->app->singleton(RunPodClient::class, function () {
-            $apiKey = config('runpod.api_key');
-
-            if ($apiKey === null || $apiKey === '') {
-                throw new RunPodApiKeyNotConfiguredException;
-            }
+            $apiKey = config('runpod.api_key') ?? '';
 
             return new RunPodClient(apiKey: $apiKey);
         });
 
         $this->app->singleton(RunPodGraphQLClient::class, function () {
-            $apiKey = config('runpod.api_key');
-            if ($apiKey === null || $apiKey === '') {
-                throw new RunPodApiKeyNotConfiguredException;
-            }
+            $apiKey = config('runpod.api_key') ?? '';
 
             return new RunPodGraphQLClient(apiKey: $apiKey);
         });
@@ -131,6 +124,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             $this->commands([
                 Console\SyncCommand::class,
                 Console\StartCommand::class,
+                Console\DeployEndpointCommand::class,
                 Console\ListCommand::class,
                 Console\InspectCommand::class,
                 Console\PruneCommand::class,
@@ -153,6 +147,9 @@ class LaravelRunPodServiceProvider extends ServiceProvider
 
         foreach ($instances as $name => $config) {
             if (($config['type'] ?? 'pod') !== 'pod') {
+                continue;
+            }
+            if (! empty($config['local'])) {
                 continue;
             }
             $frequency = $config['prune_schedule'] ?? config('runpod.prune_schedule', 'everyFiveMinutes');

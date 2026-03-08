@@ -194,6 +194,32 @@ class RunPodClient
     }
 
     /**
+     * Run a synchronous request against a serverless endpoint (runsync).
+     * POST to https://api.runpod.ai/v2/{endpointId}/runsync
+     *
+     * @param  array  $input  The input payload (e.g. ['prompt' => '...'] or ['messages' => [...]])
+     * @return array{output: mixed, status: string, executionTime: float}|null Response or null on failure
+     */
+    public function runServerlessSync(string $endpointId, array $input): ?array
+    {
+        $url = "https://api.runpod.ai/v2/{$endpointId}/runsync";
+        $response = Http::withToken($this->apiKey)
+            ->timeout(300)
+            ->acceptJson()
+            ->post($url, ['input' => $input]);
+
+        if (! $response->successful()) {
+            $this->lastError = $response->body() ?: "HTTP {$response->status()}";
+
+            return null;
+        }
+
+        $data = $response->json();
+
+        return is_array($data) ? $data : null;
+    }
+
+    /**
      * Get a serverless endpoint by ID.
      */
     public function getEndpoint(string $endpointId): ?array
@@ -339,6 +365,25 @@ class RunPodClient
         $response = $this->http()->get('/templates');
 
         return $response->successful() ? ($response->json() ?? []) : [];
+    }
+
+    /**
+     * Find a template by name.
+     *
+     * @return array{id: string, ...}|null
+     */
+    public function getTemplateByName(string $templateName): ?array
+    {
+        $templates = $this->listTemplates();
+        $normalized = $this->normalizeListResponse($templates);
+
+        foreach ($normalized as $t) {
+            if (($t['name'] ?? '') === $templateName && ! empty($t['id'] ?? null)) {
+                return $t;
+            }
+        }
+
+        return null;
     }
 
     /**

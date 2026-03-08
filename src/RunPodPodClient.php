@@ -88,7 +88,7 @@ class RunPodPodClient
             [$portNum, $protocol] = explode('/', $portSpec, 2);
             $portNum = (int) $portNum ?: $privatePort;
 
-            if (str_ends_with($protocol ?? '', '/http')) {
+            if (($protocol ?? '') === 'http' || str_ends_with($protocol ?? '', '/http')) {
                 return sprintf('https://%s-%d.proxy.runpod.net', $podId, $portNum);
             }
 
@@ -104,5 +104,29 @@ class RunPodPodClient
         }
 
         return sprintf('https://%s-%d.proxy.runpod.net', $podId, $privatePort);
+    }
+
+    /**
+     * Find a serverless endpoint by name and return its runsync URL.
+     * RunPod serverless API: https://api.runpod.ai/v2/{endpoint_id}/runsync
+     *
+     * @return array{url: string, endpoint_id: string}|null
+     */
+    public function getServerlessEndpointByName(string $endpointName): ?array
+    {
+        $endpoints = $this->client->listEndpoints();
+
+        foreach ($endpoints as $ep) {
+            if (($ep['name'] ?? '') === $endpointName && ! empty($ep['id'] ?? null)) {
+                $endpointId = $ep['id'];
+
+                return [
+                    'url' => "https://api.runpod.ai/v2/{$endpointId}/runsync",
+                    'endpoint_id' => $endpointId,
+                ];
+            }
+        }
+
+        return null;
     }
 }
