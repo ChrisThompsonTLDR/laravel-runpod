@@ -3,6 +3,7 @@
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
+use League\Flysystem\UnableToCheckExistence;
 
 class RunPodFileManager
 {
@@ -43,7 +44,9 @@ class RunPodFileManager
         }
 
         $relativePath = $this->relativeToLoadPath($fullPath);
-        $this->disk->put($this->remotePath($relativePath), file_get_contents($fullPath));
+        $remotePath = $this->remotePrefix.'/'.$relativePath;
+
+        $this->disk->put($remotePath, file_get_contents($fullPath));
 
         return $this;
     }
@@ -64,14 +67,17 @@ class RunPodFileManager
         );
 
         foreach ($files as $file) {
-            $this->syncFrom($file->getPathname());
+            if ($file->isFile()) {
+                $this->syncFrom($file->getPathname());
+            }
         }
 
         return $this;
     }
 
     /**
-     * Storage path for pod APIs (e.g. data/doc.pdf).
+     * Get the storage path for a file (e.g. "data/doc.pdf").
+     * Use when calling pod APIs that expect the path as seen on the mounted volume.
      */
     public function path(string $path): string
     {
@@ -91,9 +97,17 @@ class RunPodFileManager
         }
 
         $relativePath = $this->relativeToLoadPath($localPath);
-        $remotePath = $this->remotePath($relativePath);
+        $remotePath = $this->remotePrefix.'/'.$relativePath;
 
-        if (! $this->disk->exists($remotePath)) {
+        $shouldUpload = false;
+        try {
+            $shouldUpload = ! $this->disk->exists($remotePath);
+        } catch (UnableToCheckExistence $e) {
+            // RunPod S3 API does not reliably support HeadObject/ListObjects; assume not present and upload
+            $shouldUpload = true;
+        }
+
+        if ($shouldUpload) {
             $this->disk->put($remotePath, file_get_contents($localPath));
         }
 
