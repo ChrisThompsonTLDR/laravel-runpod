@@ -6,20 +6,11 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Unified control plane for RunPod Pods and Serverless.
+ * Control plane for RunPod pods and serverless endpoints.
  *
- * Fluent, Laravel-esque API:
- *
- *   RunPod::for(PymupdfJob::class)
- *       ->disk()
- *       ->ensure($filename);
- *
- *   $pod = RunPod::for(PymupdfJob::class)
- *       ->instance('pymupdf')
- *       ->start();
- *
- *   // Serverless with idleTimeout, or Pod with scheduler prune
- *   RunPod::instance('pymupdf')->startWithPrune('everyFiveMinutes');
+ *   RunPod::for(ExampleJob::class)->disk()->ensure($filename);
+ *   $pod = RunPod::for(ExampleJob::class)->instance('example')->start();
+ *   RunPod::instance('example')->startWithPrune('everyFiveMinutes');
  */
 class RunPod
 {
@@ -53,21 +44,28 @@ class RunPod
      */
     public function disk(?string $disk = null): RunPodFileManager
     {
-        $disk = $disk ?? config('runpod.disk', 'runpod');
-
         $instanceConfig = $this->instanceName ? $this->getInstanceConfig() : [];
-        $loadPath = $instanceConfig['load_path'] ?? config('runpod.load_path', storage_path('app/runpod'));
-        $remotePrefix = $instanceConfig['remote_prefix'] ?? config('runpod.remote_prefix', 'data');
+        $isLocal = ($instanceConfig['type'] ?? 'pod') === 'local';
+
+        if ($disk === null) {
+            $disk = $isLocal
+                ? ($instanceConfig['local_disk'] ?? 'local')
+                : (($instanceConfig['remote_disk'] ?? [])['disk_name'] ?? config('runpod.disk', 'runpod'));
+        }
+
+        $loadPath = $instanceConfig['load_path'] ?? storage_path('app/runpod');
+        $remotePrefix = ($instanceConfig['remote_disk'] ?? [])['prefix'] ?? 'data';
 
         return new RunPodFileManager(
             Storage::disk($disk),
             $loadPath,
-            $remotePrefix
+            $remotePrefix,
+            $isLocal
         );
     }
 
     /**
-     * Select an instance by nickname (configured in config/runpod.php).
+     * Select an instance by name (configured in config/runpod.php).
      */
     public function instance(string $name): static
     {
@@ -77,12 +75,23 @@ class RunPod
     }
 
     /**
-     * Ensure pod is running and return pod info (url, pod_id).
+     * Ensure pod or serverless endpoint is ready and return info (url, pod_id or endpoint_id).
+     * For serverless: looks up endpoint by name (from config or serverless_config JSON).
      */
     public function start(): ?array
     {
         $config = $this->getInstanceConfig();
-        $podConfig = array_merge(config('runpod.pod', []), $config['pod'] ?? []);
+        $type = $config['type'] ?? 'pod';
+
+        if ($type === 'serverless') {
+            return $this->ensureServerlessEndpoint($config);
+        }
+
+        $podConfig = $config;
+        $podConfig['local'] = ($config['type'] ?? 'pod') === 'local';
+        if (isset($config['local_url'])) {
+            $podConfig['local_url'] = $config['local_url'];
+        }
         $this->podManager->configure($podConfig);
         $this->podManager->setStatePath($config['state_file'] ?? $this->resolveStatePath());
         $this->podManager->setInstanceName($this->instanceName);
@@ -106,13 +115,71 @@ class RunPod
     }
 
     /**
+     * Resolve serverless endpoint: read from state file first, then API lookup by name.
+     */
+    protected function ensureServerlessEndpoint(array $config): ?array
+    {
+        $instance = $this->instanceName ?? 'default';
+        $endpointState = app(RunPodEndpointState::class);
+        $state = $endpointState->read($instance);
+        if ($state && ! empty($state['endpoint_id']) && ! empty($state['url'])) {
+            $this->podResult = [
+                'url' => $state['url'],
+                'endpoint_id' => $state['endpoint_id'],
+            ];
+            if ($this->nickname) {
+                $this->podManager->updateLastRunAt();
+            }
+
+            return $this->podResult;
+        }
+
+        $endpointName = $config['serverless']['endpoint_name'] ?? null;
+        if (! $endpointName && ! empty($config['serverless_config_path'] ?? null)) {
+            $path = $config['serverless_config_path'];
+            $path = str_starts_with($path, '/') ? $path : base_path($path);
+            if (is_file($path)) {
+                $json = json_decode((string) file_get_contents($path), true);
+                $endpointName = $json['endpoint']['name'] ?? null;
+            }
+        }
+
+        if (! $endpointName) {
+            return null;
+        }
+
+        $result = $this->client->getServerlessEndpointByName($endpointName);
+        if (! $result) {
+            return null;
+        }
+
+        $this->podResult = [
+            'url' => $result['url'],
+            'endpoint_id' => $result['endpoint_id'],
+        ];
+
+        if ($this->nickname) {
+            $this->podManager->updateLastRunAt();
+        }
+
+        return $this->podResult;
+    }
+
+    /**
      * Get full pod details from the RunPod API (includes networkVolumeId, desiredStatus, etc.).
      * Does not update last_run_at (unlike for()->pod()).
      */
     public function pod(): ?array
     {
         if ($this->instanceName) {
-            $this->podManager->setStatePath($this->resolveStatePath());
+            $config = $this->getInstanceConfig();
+            $podConfig = $config;
+            $podConfig['local'] = ($config['type'] ?? 'pod') === 'local';
+            if (isset($config['local_url'])) {
+                $podConfig['local_url'] = $config['local_url'];
+            }
+            $this->podManager->configure($podConfig);
+            $this->podManager->setStatePath($config['state_file'] ?? $this->resolveStatePath());
             $this->podManager->setInstanceName($this->instanceName);
         }
 
@@ -149,14 +216,18 @@ class RunPod
     }
 
     /**
-     * Get merged pod config for an instance (base pod + instance pod overrides).
-     * Use this when you need instance-specific values like inactivity_minutes.
+     * Get instance config with local flag and local_url merged.
      */
     public static function mergedPodConfigForInstance(string $instance): array
     {
         $config = config("runpod.instances.{$instance}", []);
+        $merged = $config;
+        $merged['local'] = ($config['type'] ?? 'pod') === 'local';
+        if (isset($config['local_url'])) {
+            $merged['local_url'] = $config['local_url'];
+        }
 
-        return array_merge(config('runpod.pod', []), $config['pod'] ?? []);
+        return $merged;
     }
 
     protected function getInstanceConfig(): array
@@ -177,15 +248,10 @@ class RunPod
             return $config['state_file'];
         }
 
-        $base = config('runpod.state_file', storage_path('app/runpod-pod-state.json'));
         $nickname = $this->instanceName ?? $this->nickname ?? 'default';
         $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $nickname);
 
-        if (str_ends_with($base, '.json')) {
-            return preg_replace('/\.json$/', "-{$safe}.json", $base);
-        }
-
-        return $base.'.'.$safe;
+        return storage_path("app/runpod-pod-state-{$safe}.json");
     }
 
     protected function parsePruneToMinutes(string $scheduleMethod): int

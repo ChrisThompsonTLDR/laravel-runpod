@@ -131,3 +131,119 @@ it('syncAll throws when load path is not directory', function () {
 
     $manager->syncAll();
 })->throws(\RuntimeException::class, 'Load path is not a directory');
+
+it('syncFrom is no-op when isLocal is true', function () {
+    $loadPath = storage_path('app/runpod');
+    if (! is_dir($loadPath)) {
+        mkdir($loadPath, 0755, true);
+    }
+    file_put_contents($loadPath.'/doc.pdf', 'content');
+
+    $manager = new RunPodFileManager(Storage::disk('runpod'), $loadPath, 'data', true);
+    $manager->syncFrom($loadPath.'/doc.pdf');
+
+    expect(Storage::disk('runpod')->exists('data/doc.pdf'))->toBeFalse();
+});
+
+it('syncAll is no-op when isLocal is true', function () {
+    $loadPath = storage_path('app/runpod');
+    if (! is_dir($loadPath)) {
+        mkdir($loadPath, 0755, true);
+    }
+    file_put_contents($loadPath.'/a.txt', 'a');
+
+    $manager = new RunPodFileManager(Storage::disk('runpod'), $loadPath, 'data', true);
+    $manager->syncAll();
+
+    expect(Storage::disk('runpod')->exists('data/a.txt'))->toBeFalse();
+});
+
+it('ensure is no-op when isLocal is true', function () {
+    $loadPath = storage_path('app/runpod');
+    if (! is_dir($loadPath)) {
+        mkdir($loadPath, 0755, true);
+    }
+    file_put_contents($loadPath.'/doc.pdf', 'content');
+
+    $manager = new RunPodFileManager(Storage::disk('runpod'), $loadPath, 'data', true);
+    $manager->ensure('doc.pdf');
+
+    expect(Storage::disk('runpod')->exists('data/doc.pdf'))->toBeFalse();
+});
+
+// =============================================================================
+// path()
+// =============================================================================
+
+it('path returns remote path for relative input', function () {
+    $manager = new RunPodFileManager(Storage::disk('runpod'), storage_path('app/runpod'), 'data');
+
+    expect($manager->path('doc.pdf'))->toBe('data/doc.pdf')
+        ->and($manager->path('sub/file.pdf'))->toBe('data/sub/file.pdf');
+});
+
+it('path returns input when already prefixed', function () {
+    $manager = new RunPodFileManager(Storage::disk('runpod'), storage_path('app/runpod'), 'data');
+
+    expect($manager->path('data/doc.pdf'))->toBe('data/doc.pdf');
+});
+
+// =============================================================================
+// resolveLocalPath / relative path handling
+// =============================================================================
+
+it('syncFrom accepts relative path under load path', function () {
+    $loadPath = storage_path('app/runpod');
+    if (! is_dir($loadPath)) {
+        mkdir($loadPath, 0755, true);
+    }
+    $subdir = $loadPath.'/sub';
+    if (! is_dir($subdir)) {
+        mkdir($subdir, 0755, true);
+    }
+    file_put_contents($subdir.'/doc.pdf', 'content');
+
+    $manager = new RunPodFileManager(Storage::disk('runpod'), $loadPath, 'data');
+    $manager->syncFrom('sub/doc.pdf');
+
+    expect(Storage::disk('runpod')->get('data/sub/doc.pdf'))->toBe('content');
+});
+
+it('ensure accepts relative path under load path', function () {
+    $loadPath = storage_path('app/runpod');
+    if (! is_dir($loadPath)) {
+        mkdir($loadPath, 0755, true);
+    }
+    $subdir = $loadPath.'/sub';
+    if (! is_dir($subdir)) {
+        mkdir($subdir, 0755, true);
+    }
+    file_put_contents($subdir.'/doc.pdf', 'content');
+
+    $manager = new RunPodFileManager(Storage::disk('runpod'), $loadPath, 'data');
+    $manager->ensure('sub/doc.pdf');
+
+    expect(Storage::disk('runpod')->get('data/sub/doc.pdf'))->toBe('content');
+});
+
+it('get works with already prefixed path', function () {
+    Storage::disk('runpod')->put('data/sub/file.pdf', 'content');
+    $manager = new RunPodFileManager(Storage::disk('runpod'), storage_path('app/runpod'), 'data');
+
+    expect($manager->get('data/sub/file.pdf'))->toBe('content');
+});
+
+it('returns chainable self from put syncFrom syncAll ensure', function () {
+    $loadPath = storage_path('app/runpod');
+    if (! is_dir($loadPath)) {
+        mkdir($loadPath, 0755, true);
+    }
+    file_put_contents($loadPath.'/a.txt', 'a');
+
+    $manager = new RunPodFileManager(Storage::disk('runpod'), $loadPath, 'data');
+
+    expect($manager->put('x.txt', 'x'))->toBe($manager)
+        ->and($manager->syncFrom($loadPath.'/a.txt'))->toBe($manager)
+        ->and($manager->syncAll())->toBe($manager)
+        ->and($manager->ensure('a.txt'))->toBe($manager);
+});

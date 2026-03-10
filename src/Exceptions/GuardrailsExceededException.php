@@ -53,9 +53,4 @@ class GuardrailsExceededException extends Exception
     {
         return new self('storage', 'volume_size_gb_max', $current, $limit);
     }
-
-    public static function apiRequestsPerMinute(int $current, int $limit): self
-    {
-        return new self('api', 'requests_per_minute', $current, $limit);
-    }
 }

@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class PruneCommand extends Command
 {
-    protected $signature = 'runpod:prune {instance? : Instance name (e.g. pymupdf). Omit to prune default.}';
+    protected $signature = 'runpod:prune {instance? : Instance name (e.g. example). Omit to prune default.}';
 
     protected $description = 'Terminate RunPod pod after inactivity threshold';
 
@@ -22,7 +22,19 @@ class PruneCommand extends Command
 
         $instances = config('runpod.instances', []);
         if ($instance && isset($instances[$instance])) {
-            $manager->configure($instances[$instance]['pod'] ?? []);
+            $config = $instances[$instance];
+            $podConfig = $config;
+            $podConfig['local'] = ($config['type'] ?? 'pod') === 'local';
+            if (isset($config['local_url'])) {
+                $podConfig['local_url'] = $config['local_url'];
+            }
+            $manager->configure($podConfig);
+        }
+
+        if ($manager->isLocal()) {
+            $this->info('Instance is in local mode; prune skipped.');
+
+            return self::SUCCESS;
         }
 
         $serverlessStopped = $this->confirmServerlessStopped($client);
@@ -77,16 +89,13 @@ class PruneCommand extends Command
             if (! empty($config['state_file'])) {
                 return $config['state_file'];
             }
-            $base = config('runpod.state_file', storage_path('app/runpod-pod-state.json'));
-            $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $instance);
-            if (str_ends_with($base, '.json')) {
-                return preg_replace('/\.json$/', "-{$safe}.json", $base);
-            }
 
-            return $base.'.'.$safe;
+            $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $instance);
+
+            return storage_path("app/runpod-pod-state-{$safe}.json");
         }
 
-        return config('runpod.state_file', storage_path('app/runpod-pod-state.json'));
+        return storage_path('app/runpod-pod-state.json');
     }
 
     /**
@@ -100,7 +109,10 @@ class PruneCommand extends Command
         }
 
         $config = config("runpod.instances.{$instance}", []);
-        $podName = $config['pod']['name'] ?? null;
+        if (($config['type'] ?? 'pod') === 'local') {
+            return 0;
+        }
+        $podName = $config['name'] ?? null;
         if (! $podName) {
             return 0;
         }

@@ -20,9 +20,9 @@ Paths must be within the configured `load_path`. Path traversal (`..`) is reject
 Ensure a RunPod instance is running. Creates and waits for the pod if needed.
 
 ```bash
-php artisan runpod:start pymupdf
-php artisan runpod:start pymupdf --nickname=runpod:start
-php artisan runpod:start pymupdf --show-error
+php artisan runpod:start example
+php artisan runpod:start example --nickname=runpod:start
+php artisan runpod:start example --show-error
 ```
 
 | Option | Default | Description |
@@ -49,7 +49,7 @@ Terminate a pod after the inactivity threshold.
 php artisan runpod:prune
 
 # Prune specific instance
-php artisan runpod:prune pymupdf
+php artisan runpod:prune example
 ```
 
 Compares `last_run_at` to `inactivity_minutes`. If idle long enough, terminates the pod. Also terminates orphaned pods (same name but not in state file).
@@ -75,7 +75,7 @@ Refresh the stats file used by dashboards. Runs on schedule every 2 minutes.
 php artisan runpod:stats
 
 # Refresh specific instance
-php artisan runpod:stats pymupdf
+php artisan runpod:stats example
 ```
 
 ## runpod:dashboard
@@ -85,8 +85,8 @@ Live terminal dashboard (requires Termwind Live).
 ```bash
 composer require nunomaduro/termwind xico2k/termwind-plugin-live
 
-php artisan runpod:dashboard pymupdf
-php artisan runpod:dashboard pymupdf --refresh=5
+php artisan runpod:dashboard example
+php artisan runpod:dashboard example --refresh=5
 ```
 
 | Option | Default | Description |
@@ -109,7 +109,7 @@ php artisan runpod:flush --force
 Inspect a RunPod instance: pod details from the API, including network volume.
 
 ```bash
-php artisan runpod:inspect pymupdf
+php artisan runpod:inspect example
 ```
 
 ## Scheduled Commands

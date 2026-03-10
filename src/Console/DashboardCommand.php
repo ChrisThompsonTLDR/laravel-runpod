@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class DashboardCommand extends Command
 {
     protected $signature = 'runpod:dashboard
-        {instance? : Instance name (e.g. pymupdf). Omit for default.}
+        {instance? : Instance name (e.g. example). Omit for default.}
         {--refresh=5 : Refresh interval in seconds}';
 
     protected $description = 'Live RunPod stats dashboard (reads from stats file)';

@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 class StartCommand extends Command
 {
     protected $signature = 'runpod:start
-        {instance : Instance name (e.g. pymupdf)}
+        {instance : Instance name (e.g. example)}
         {--nickname=runpod:start : Nickname for last_run_at tracking}
         {--show-error : Show RunPod API error details on failure}';
 

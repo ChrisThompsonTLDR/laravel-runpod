@@ -1,25 +1,30 @@
 <?php
 
-use ChrisThompsonTLDR\LaravelRunPod\LaravelRunPodServiceProvider;
+use ChrisThompsonTLDR\LaravelRunPod\RunPodServiceProvider;
 use ChrisThompsonTLDR\LaravelRunPod\Tests\TestCase;
 
 uses(TestCase::class);
 
-covers(LaravelRunPodServiceProvider::class);
+covers(RunPodServiceProvider::class);
 
-it('registers runpod disk when s3 config present', function () {
+it('registers runpod disk when instance has remote_disk config', function () {
     config([
         'runpod.api_key' => 'test-key',
-        'runpod.s3' => [
-            'key' => 's3-key',
-            'secret' => 's3-secret',
-            'bucket' => 'my-bucket',
-            'region' => 'us-east-1',
-            'endpoint' => 'https://s3.example.com',
+        'runpod.instances' => [
+            'example' => [
+                'remote_disk' => [
+                    'disk_name' => 'runpod',
+                    'key' => 's3-key',
+                    'secret' => 's3-secret',
+                    'bucket' => 'my-bucket',
+                    'region' => 'us-east-1',
+                    'endpoint' => 'https://s3.example.com',
+                ],
+            ],
         ],
     ]);
 
-    $provider = app()->getProvider(LaravelRunPodServiceProvider::class);
+    $provider = app()->getProvider(RunPodServiceProvider::class);
     $provider->boot();
 
     expect(config('filesystems.disks.runpod'))->toBeArray()
@@ -27,19 +32,24 @@ it('registers runpod disk when s3 config present', function () {
         ->and(config('filesystems.disks.runpod.bucket'))->toBe('my-bucket');
 });
 
-it('does not register runpod disk when s3 config incomplete', function () {
+it('does not register runpod disk when instance remote_disk config incomplete', function () {
     config([
         'runpod.api_key' => 'test-key',
-        'runpod.s3' => [
-            'key' => '',
-            'secret' => '',
-            'bucket' => '',
-            'region' => 'us-east-1',
-            'endpoint' => 'https://s3.example.com',
+        'runpod.instances' => [
+            'example' => [
+                'remote_disk' => [
+                    'disk_name' => 'runpod',
+                    'key' => '',
+                    'secret' => '',
+                    'bucket' => '',
+                    'region' => 'us-east-1',
+                    'endpoint' => 'https://s3.example.com',
+                ],
+            ],
         ],
     ]);
 
-    $provider = app()->getProvider(LaravelRunPodServiceProvider::class);
+    $provider = app()->getProvider(RunPodServiceProvider::class);
     $provider->boot();
 
     expect(config('filesystems.disks.runpod'))->toBeNull();

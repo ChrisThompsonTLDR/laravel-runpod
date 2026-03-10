@@ -63,7 +63,7 @@ flowchart LR
     SharedVolume -->|bind mount| PodContainer
     FileManager -->|local mode: no-op| LocalDisk
     RunPodFacade -->|local mode: skip API| LocalURL
-    LocalURL[http://pymupdf:8000] --> PodContainer
+    LocalURL[http://example:80] --> PodContainer
 ```
 
 
@@ -87,21 +87,21 @@ Per-instance options:
 | Key         | Type   | Description                                                                               |
 | ----------- | ------ | ----------------------------------------------------------------------------------------- |
 | `local`     | bool   | When true, use local Docker instead of RunPod cloud                                       |
-| `local_url` | string | URL for the local pod (e.g. `http://pymupdf:8000` or `http://localhost:8000`)             |
+| `local_url` | string | URL for the local pod (e.g. `http://example:80` or `http://localhost:8000`)             |
 | `disk`      | string | Laravel disk name from `config/filesystems.php`. When local, use this instead of `runpod` |
 
 
 **Example instance config:**
 
 ```php
-'pymupdf' => [
+'example' => [
     'type' => 'pod',
     'local' => env('RUNPOD_LOCAL', false),
-    'local_url' => env('RUNPOD_PYMUPDF_LOCAL_URL', 'http://pymupdf:8000'),
+    'local_url' => env('RUNPOD_PYMUPDF_LOCAL_URL', 'http://example:80'),
     'disk' => env('RUNPOD_PYMUPDF_DISK', 'runpod'),  // 'local' when in local mode
     'load_path' => storage_path('app/runpod'),
     'pod' => [
-        'image_name' => 'ghcr.io/.../docker-pymupdf:latest',
+        'image_name' => 'ghcr.io/.../docker-example:latest',
         'volume_mount_path' => '/workspace',
         // ...
     ],
@@ -193,8 +193,8 @@ Pass `local` and `local_url` into pod config from instance config in `RunPod::st
 
 ```yaml
 services:
-  pymupdf:
-    image: ghcr.io/christhompsontldr/docker-pymupdf-tesseract:latest
+  example:
+    image: ghcr.io/christhompsontldr/nginx:alpine:latest
     ports:
       - "8000:8000"
     volumes:
@@ -204,7 +204,7 @@ services:
       PYMUPDF_OUTPUT_DIR: /workspace/output
 ```
 
-- Config: set `local => true`, `local_url => 'http://pymupdf:8000'` (or `http://localhost:8000` if accessing from host), `disk => 'local'` with a disk that uses the same path.
+- Config: set `local => true`, `local_url => 'http://example:80'` (or `http://localhost:8000` if accessing from host), `disk => 'local'` with a disk that uses the same path.
 
 **config/filesystems.php (app-level):** Document that when using local mode, the app should define a disk (e.g. `runpod_local`) whose root is the same as `load_path`, so `put`/`get`/`exists` work correctly. Or use the default `local` disk if `load_path` is under `storage_path('app')`.
 

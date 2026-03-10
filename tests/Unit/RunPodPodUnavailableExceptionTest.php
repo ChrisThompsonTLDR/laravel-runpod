@@ -10,8 +10,9 @@ covers(RunPodPodUnavailableException::class);
 it('has expected message when constructed without previous', function () {
     $e = new RunPodPodUnavailableException;
 
-    expect($e->getMessage())->toContain('RunPod pod is unavailable')
-        ->and($e->getMessage())->toContain('pod may still be starting')
+    expect($e->getMessage())->toContain('RunPod pod unavailable')
+        ->and($e->getMessage())->toContain('may still be starting')
+        ->and($e->getMessage())->toContain('config/runpod.php')
         ->and($e->getCode())->toBe(0)
         ->and($e->getPrevious())->toBeNull();
 });
@@ -21,5 +22,5 @@ it('accepts previous throwable', function () {
     $e = new RunPodPodUnavailableException($previous);
 
     expect($e->getPrevious())->toBe($previous)
-        ->and($e->getMessage())->toContain('RunPod pod is unavailable');
+        ->and($e->getMessage())->toContain('RunPod pod unavailable');
 });

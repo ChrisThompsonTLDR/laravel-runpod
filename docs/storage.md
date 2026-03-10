@@ -1,13 +1,13 @@
 # Storage
 
-Laravel RunPod uses RunPod's S3-compatible API to manage files on network volumes. Files synced to the volume are available at `/workspace/{remote_prefix}/` inside the pod.
+Laravel RunPod uses RunPod's S3-compatible API to manage files on network volumes. Files synced to the volume are available at `/workspace/{prefix}/` inside the pod.
 
-## Load Path and Remote Prefix
+## Load Path and Prefix
 
-- **Load path** — Local directory to sync from (`config/runpod.load_path`, default `storage/app/runpod`)
-- **Remote prefix** — S3 key prefix (`config/runpod.remote_prefix`, default `data`)
+- **Load path** — Local directory to sync from (per-instance `load_path`, e.g. `storage_path('app/runpod')`)
+- **Prefix** — Folder under volume root (`remote_disk.prefix`, e.g. `data`); maps to `/workspace/data/` on pods
 
-Files under the load path map to `{remote_prefix}/{relative_path}` on S3. On the pod, that becomes `/workspace/{remote_prefix}/{relative_path}` (e.g. `/workspace/data/document.pdf`).
+Files under the load path map to `{prefix}/{relative_path}` on S3. On the pod, that becomes `/workspace/{prefix}/{relative_path}` (e.g. `/workspace/data/document.pdf`).
 
 ## Using the File Manager
 

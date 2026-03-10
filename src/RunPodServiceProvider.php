@@ -2,11 +2,11 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
-use ChrisThompsonTLDR\LaravelRunPod\Exceptions\RunPodApiKeyNotConfiguredException;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\ServiceProvider;
 
-class LaravelRunPodServiceProvider extends ServiceProvider
+class RunPodServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
@@ -24,11 +24,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             return new RunPodGraphQLClient(apiKey: $apiKey);
         });
 
-        $this->app->singleton(RunPodStatsWriter::class, function () {
-            return new RunPodStatsWriter(
-                basePath: config('runpod.stats_file', storage_path('app/runpod-stats.json'))
-            );
-        });
+        $this->app->singleton(RunPodStatsWriter::class, fn () => new RunPodStatsWriter);
 
         $this->app->singleton(RunPodPodClient::class, function () {
             return new RunPodPodClient(
@@ -40,8 +36,8 @@ class LaravelRunPodServiceProvider extends ServiceProvider
         $this->app->singleton(RunPodPodManager::class, function () {
             return new RunPodPodManager(
                 client: $this->app->make(RunPodPodClient::class),
-                stateFilePath: config('runpod.state_file', storage_path('app/runpod-pod-state.json')),
-                podConfig: config('runpod.pod', []),
+                stateFilePath: storage_path('app/runpod-pod-state.json'),
+                podConfig: [],
                 statsWriter: $this->app->make(RunPodStatsWriter::class)
             );
         });
@@ -58,12 +54,13 @@ class LaravelRunPodServiceProvider extends ServiceProvider
                 client: $this->app->make(RunPodClient::class)
             );
         });
+
+        $this->app->singleton(RunPodEndpointState::class, fn () => new RunPodEndpointState);
     }
 
     public function boot(): void
     {
         $this->registerRunPodDisk();
-        $this->registerMacros();
         $this->registerCommands();
         $this->registerSchedule();
 
@@ -80,42 +77,60 @@ class LaravelRunPodServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'runpod');
 
         if (class_exists(\Livewire\Livewire::class)) {
-            \Livewire\Livewire::component('runpod-dashboard', \ChrisThompsonTLDR\LaravelRunPod\Livewire\RunPodDashboard::class);
-            $this->loadRoutesFrom(__DIR__.'/../routes/dashboard.php');
+            $this->registerRunpodGate();
+            $this->loadRoutesFrom(__DIR__.'/../routes/runpod.php');
         }
     }
 
+    protected function registerRunpodGate(): void
+    {
+        Gate::define('viewRunpod', function (?object $user = null) {
+            if (app()->environment('local')) {
+                return true;
+            }
+
+            return $user !== null;
+        });
+    }
+
+    /**
+     * Register S3 disks for each instance that has s3 config.
+     * RunPod network volumes are S3-compatible; bucket = network volume ID.
+     *
+     * RunPod S3 does not support x-amz-acl; the before_upload callback strips it.
+     * Multipart upload is disabled (mup_threshold 500MB) because CreateMultipartUpload with ACL fails.
+     */
     protected function registerRunPodDisk(): void
     {
-        $config = config('runpod.s3');
+        $instances = config('runpod.instances', []);
 
-        if (! $config['key'] || ! $config['secret'] || ! $config['bucket']) {
-            return;
-        }
+        foreach ($instances as $instanceConfig) {
+            $remote = $instanceConfig['remote_disk'] ?? null;
+            if (! $remote || ! ($remote['key'] ?? null) || ! ($remote['secret'] ?? null) || ! ($remote['bucket'] ?? null)) {
+                continue;
+            }
 
-        config([
-            'filesystems.disks.runpod' => [
-                'driver' => 's3',
-                'key' => $config['key'],
-                'secret' => $config['secret'],
-                'region' => $config['region'],
-                'bucket' => $config['bucket'],
-                'endpoint' => $config['endpoint'],
-                'use_path_style_endpoint' => true,
-                'throw' => true,
-                // RunPod S3 API does not support x-amz-acl; strip it from PutObject requests
-                'options' => [
-                    'before_upload' => function ($command) {
-                        $command->offsetUnset('ACL');
-                    },
+            $diskName = $remote['disk_name'] ?? 'runpod';
+
+            config([
+                "filesystems.disks.{$diskName}" => [
+                    'driver' => 's3',
+                    'key' => $remote['key'],
+                    'secret' => $remote['secret'],
+                    'region' => $remote['region'] ?? 'US-MD-1',
+                    'bucket' => $remote['bucket'],
+                    'endpoint' => $remote['endpoint'] ?? 'https://s3api-us-md-1.runpod.io',
+                    'use_path_style_endpoint' => true,
+                    'throw' => true,
+                    'options' => [
+                        'before_upload' => function ($command) {
+                            $command->offsetUnset('ACL');
+                        },
+                        'mup_threshold' => 524288000,
+                    ],
                 ],
-            ],
-        ]);
-    }
-
-    protected function registerMacros(): void
-    {
-        Macros\StorageMacros::register();
+            ]);
+        }
     }
 
     protected function registerCommands(): void
@@ -149,10 +164,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
             if (($config['type'] ?? 'pod') !== 'pod') {
                 continue;
             }
-            if (! empty($config['local'])) {
-                continue;
-            }
-            $frequency = $config['prune_schedule'] ?? config('runpod.prune_schedule', 'everyFiveMinutes');
+            $frequency = $config['prune_schedule'] ?? 'everyFiveMinutes';
             if (! in_array($frequency, $allowed, true)) {
                 $frequency = 'everyFiveMinutes';
             }
@@ -161,11 +173,7 @@ class LaravelRunPodServiceProvider extends ServiceProvider
 
         // Fallback: if no instances, use legacy single prune
         if (empty($instances)) {
-            $frequency = config('runpod.prune_schedule', 'everyFiveMinutes');
-            if (! in_array($frequency, $allowed, true)) {
-                $frequency = 'everyFiveMinutes';
-            }
-            Schedule::command('runpod:prune')->{$frequency}();
+            Schedule::command('runpod:prune')->everyFiveMinutes();
         }
 
         // Guardrails: refresh usage cache on schedule

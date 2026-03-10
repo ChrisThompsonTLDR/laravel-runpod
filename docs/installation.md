@@ -39,7 +39,7 @@ RUNPOD_S3_REGION=US-MD-1
 RUNPOD_NETWORK_VOLUME_ID=
 
 # Per-instance overrides (e.g. RUNPOD_PYMUPDF_NETWORK_VOLUME_ID, RUNPOD_PYMUPDF_IMAGE)
-# See config/runpod.php instances[].pod for image_name, network_volume_id, etc.
+# See config/runpod.php instances[] for image_name, network_volume_id, etc.
 
 # Local path to sync files from (default: storage/app/runpod)
 RUNPOD_LOAD_PATH=
@@ -68,13 +68,21 @@ Add to `config/app.php` aliases:
 'RunPod' => ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod::class,
 ```
 
-## Optional: Web Dashboard Views
+## Optional: Web Dashboard (Livewire + Flux)
 
-To customize the Livewire dashboard:
+The web dashboard requires Livewire and Flux. It uses your app's `layouts.app` layout:
+
+```bash
+php artisan livewire:layout
+```
+
+To customize the dashboard views:
 
 ```bash
 php artisan vendor:publish --tag=laravel-runpod-dashboard
 ```
+
+The dashboard is protected by a `viewRunpod` gate (local: open; production: requires auth). See [Dashboards](dashboards.md) for authorization details.
 
 ## Optional: Terminal Dashboard
 

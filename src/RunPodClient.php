@@ -2,19 +2,12 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
+use ChrisThompsonTLDR\LaravelRunPod\Exceptions\RunPodApiKeyNotConfiguredException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Laravel HTTP Client wrapper for the RunPod REST API.
- *
- * Covers all endpoints from https://rest.runpod.io/v1 including:
- * - Pods
- * - Serverless Endpoints
- * - Network Volumes
- * - Templates
- * - Container Registry Auths
- * - Billing
+ * Wrapper for RunPod REST API (https://rest.runpod.io/v1).
  */
 class RunPodClient
 {
@@ -242,9 +235,14 @@ class RunPodClient
      */
     public function createEndpoint(array $input): ?array
     {
+        $this->lastError = null;
         $response = $this->http()->post('/endpoints', $input);
 
         if (! $response->successful()) {
+            $body = $response->body();
+            $json = $response->json();
+            $this->lastError = $json['message'] ?? $json['error'] ?? $body ?: "HTTP {$response->status()}";
+
             return null;
         }
 
@@ -289,8 +287,9 @@ class RunPodClient
     public function listNetworkVolumes(): array
     {
         $response = $this->http()->get('/networkvolumes');
+        $data = $response->successful() ? ($response->json() ?? []) : [];
 
-        return $response->successful() ? ($response->json() ?? []) : [];
+        return $this->normalizeListResponse($data);
     }
 
     /**
@@ -363,8 +362,9 @@ class RunPodClient
     public function listTemplates(): array
     {
         $response = $this->http()->get('/templates');
+        $data = $response->successful() ? ($response->json() ?? []) : [];
 
-        return $response->successful() ? ($response->json() ?? []) : [];
+        return $this->normalizeListResponse($data);
     }
 
     /**
@@ -425,9 +425,14 @@ class RunPodClient
      */
     public function updateTemplate(string $templateId, array $input): ?array
     {
+        $this->lastError = null;
         $response = $this->http()->patch("/templates/{$templateId}", $input);
 
         if (! $response->successful()) {
+            $body = $response->body();
+            $json = $response->json();
+            $this->lastError = is_array($json) ? ($json['message'] ?? $json['error'] ?? $body) : ($body ?: "HTTP {$response->status()}");
+
             return null;
         }
 
@@ -568,6 +573,10 @@ class RunPodClient
 
     protected function http(): PendingRequest
     {
+        if ($this->apiKey === '') {
+            throw new RunPodApiKeyNotConfiguredException;
+        }
+
         return Http::withToken($this->apiKey)
             ->baseUrl($this->baseUrl)
             ->acceptJson();

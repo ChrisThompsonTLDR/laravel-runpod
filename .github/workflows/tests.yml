@@ -18,7 +18,8 @@ jobs:
 
       - name: Install dependencies (CI: exclude docit to avoid laravel-zero/PHPUnit conflict)
         run: |
-          cp composer.ci.json composer.json
+          composer config --unset repositories
+          composer remove christhompsontldr/laravel-docit --dev --no-update
           composer update --no-interaction --prefer-dist
 
       - name: Run Pest

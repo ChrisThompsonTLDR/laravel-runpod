@@ -42,7 +42,7 @@ it('returns existing pod when state has running pod', function () {
 it('returns null when createPod returns null', function () {
     $statePath = sys_get_temp_dir().'/runpod-test-'.uniqid().'.json';
 
-    config(['runpod.pod.image_name' => null, 'runpod.guardrails.enabled' => false]);
+    config(['runpod.guardrails.enabled' => false]);
 
     $client = app(RunPodPodClient::class);
     $manager = new RunPodPodManager($client, $statePath, []);
@@ -116,10 +116,8 @@ it('terminatePod calls client and clears state when state exists', function () {
 });
 
 it('configure merges pod config', function () {
-    config(['runpod.pod' => ['gpu_count' => 1]]);
-
     $manager = new RunPodPodManager(\Mockery::mock(RunPodPodClient::class), '/tmp/state.json', []);
-    $manager->configure(['name' => 'custom-pod']);
+    $manager->configure(['gpu_count' => 1, 'name' => 'custom-pod']);
 
     $ref = new \ReflectionClass($manager);
     $prop = $ref->getProperty('podConfig');
@@ -162,12 +160,10 @@ it('pruneIfInactive returns false when last_run_at within threshold', function (
         'last_run_at' => now()->subMinutes(1)->toIso8601String(),
     ]));
 
-    config(['runpod.pod.inactivity_minutes' => 2]);
-
     $mockClient = \Mockery::mock(RunPodPodClient::class);
     $mockClient->shouldNotReceive('terminatePod');
 
-    $manager = new RunPodPodManager($mockClient, $statePath, []);
+    $manager = new RunPodPodManager($mockClient, $statePath, ['inactivity_minutes' => 2]);
 
     expect($manager->pruneIfInactive())->toBeFalse();
 
@@ -181,12 +177,10 @@ it('pruneIfInactive terminates when idle exceeds threshold', function () {
         'last_run_at' => now()->subMinutes(5)->toIso8601String(),
     ]));
 
-    config(['runpod.pod.inactivity_minutes' => 2]);
-
     $mockClient = \Mockery::mock(RunPodPodClient::class);
     $mockClient->shouldReceive('terminatePod')->with('pod-123')->once()->andReturn(true);
 
-    $manager = new RunPodPodManager($mockClient, $statePath, []);
+    $manager = new RunPodPodManager($mockClient, $statePath, ['inactivity_minutes' => 2]);
 
     expect($manager->pruneIfInactive())->toBeTrue()
         ->and(file_exists($statePath))->toBeFalse();

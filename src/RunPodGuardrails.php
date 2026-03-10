@@ -16,7 +16,7 @@ class RunPodGuardrails
     ) {}
 
     /**
-     * Ensure current usage is within guardrail limits. Throws if exceeded.
+     * Throws if usage exceeds limits.
      *
      * @throws GuardrailsExceededException
      */
@@ -35,37 +35,15 @@ class RunPodGuardrails
     }
 
     /**
-     * Check before creating a pod. Throws if creating would exceed limits.
+     * Throws if creating a pod would exceed pod limits. Uses fresh API data, not cache.
      *
      * @throws GuardrailsExceededException
      */
     public function checkBeforeCreatePod(): void
     {
-        // Only check pod limits. Storage (volume_size_gb_max) measures allocated capacity
-        // from the API, not actual usage, and creating a pod does not allocate new storage.
-
         $limits = $this->getLimits();
-        $podLimits = $limits['pods'] ?? [];
-
-        // Use fresh usage (not cached) so concurrent workers see real-time pod counts.
-        // Cached data can be stale and allow multiple pods when limit is 1.
         $usage = $this->getUsageFresh();
-
-        if (isset($podLimits['pods_max'])) {
-            $current = count($usage['pods'] ?? []);
-            $limit = (int) $podLimits['pods_max'];
-            if ($limit > 0 && $current >= $limit) {
-                $this->tripAndThrow('pods', 'pods_max', $current, $limit);
-            }
-        }
-
-        if (isset($podLimits['pods_running_max'])) {
-            $running = $this->countRunningPods($usage['pods'] ?? []);
-            $limit = (int) $podLimits['pods_running_max'];
-            if ($limit > 0 && $running >= $limit) {
-                $this->tripAndThrow('pods', 'pods_running_max', $running, $limit);
-            }
-        }
+        $this->checkPods($usage, $limits);
     }
 
     public function getUsage(): array
@@ -76,8 +54,7 @@ class RunPodGuardrails
     }
 
     /**
-     * Get usage from RunPod API without cache. Use when checking before pod creation
-     * so limits are enforced against real-time data, not stale cached counts.
+     * Usage from API, no cache. Use for checkBeforeCreatePod so limits use real-time data.
      */
     public function getUsageFresh(): array
     {
@@ -214,7 +191,6 @@ class RunPodGuardrails
     {
         $sum = 0;
         foreach ($volumes as $vol) {
-            // REST API uses 'size'; fall back to 'volumeInGb' for compatibility
             $sum += (float) ($vol['size'] ?? $vol['volumeInGb'] ?? 0);
         }
 

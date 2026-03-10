@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class InspectCommand extends Command
 {
     protected $signature = 'runpod:inspect
-        {instance : Instance name (e.g. pymupdf)}';
+        {instance : Instance name (e.g. example)}';
 
     protected $description = 'Inspect a RunPod instance (pod details from API, including network volume)';
 
@@ -23,6 +23,7 @@ class InspectCommand extends Command
             return self::FAILURE;
         }
 
+        $config = $instances[$instance];
         $pod = RunPod::instance($instance)->for('runpod:inspect')->pod();
 
         if (! $pod) {
@@ -31,8 +32,18 @@ class InspectCommand extends Command
             return self::SUCCESS;
         }
 
-        $config = $instances[$instance];
-        $podConfig = array_merge(config('runpod.pod', []), $config['pod'] ?? []);
+        $isLocal = ($config['type'] ?? 'pod') === 'local';
+
+        if ($isLocal) {
+            $this->info('Pod: local');
+            $this->line('  Mode: local (Docker)');
+            $this->line('  URL: '.($config['local_url'] ?? '-'));
+            $this->line('  Disk: '.($config['local_disk'] ?? 'local'));
+
+            return self::SUCCESS;
+        }
+
+        $podConfig = $config;
         $expectedVolumeId = $podConfig['network_volume_id'] ?? null;
         $actualVolumeId = $pod['networkVolumeId'] ?? null;
         $hasStorage = ! empty($actualVolumeId);

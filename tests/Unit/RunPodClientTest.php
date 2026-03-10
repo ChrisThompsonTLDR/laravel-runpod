@@ -295,3 +295,134 @@ it('returns array from getPodBilling when successful', function () {
 
     expect($billing)->toBe([['podId' => 'pod-1']]);
 });
+
+// =============================================================================
+// normalizeListResponse (via listPods / listEndpoints)
+// =============================================================================
+
+it('normalizes listPods when API returns data wrapper', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods*' => Http::response(['data' => [['id' => 'pod-1'], ['id' => 'pod-2']]], 200),
+    ]);
+
+    $client = new RunPodClient('test-key');
+    $pods = $client->listPods();
+
+    expect($pods)->toBe([['id' => 'pod-1'], ['id' => 'pod-2']]);
+});
+
+it('normalizes listNetworkVolumes when API returns data wrapper', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/networkvolumes' => Http::response(['data' => [['id' => 'vol-1']]], 200),
+    ]);
+
+    $client = new RunPodClient('test-key');
+    $volumes = $client->listNetworkVolumes();
+
+    expect($volumes)->toBe([['id' => 'vol-1']]);
+});
+
+it('normalizes listTemplates when API returns data wrapper', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/templates' => Http::response(['data' => [['id' => 't1', 'name' => 'base']]], 200),
+    ]);
+
+    $client = new RunPodClient('test-key');
+    $templates = $client->listTemplates();
+
+    expect($templates)->toBe([['id' => 't1', 'name' => 'base']]);
+});
+
+// =============================================================================
+// getLastError
+// =============================================================================
+
+it('returns null from getLastError initially', function () {
+    $client = new RunPodClient('test-key');
+
+    expect($client->getLastError())->toBeNull();
+});
+
+it('sets lastError when createPod fails', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods' => Http::response('Bad request', 400),
+    ]);
+
+    $client = new RunPodClient('test-key');
+    $client->createPod(['imageName' => 'img']);
+
+    expect($client->getLastError())->toBe('Bad request');
+});
+
+it('clears lastError on successful createPod', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods' => Http::response(['id' => 'pod-1'], 201),
+    ]);
+
+    $client = new RunPodClient('test-key');
+    $client->createPod(['imageName' => 'img', 'name' => 'test']);
+
+    expect($client->getLastError())->toBeNull();
+});
+
+// =============================================================================
+// Custom baseUrl
+// =============================================================================
+
+it('uses custom baseUrl when provided', function () {
+    Http::fake([
+        'https://custom.runpod.io/v1/pods*' => Http::response([], 200),
+    ]);
+
+    $client = new RunPodClient('test-key', 'https://custom.runpod.io/v1');
+    $client->listPods();
+
+    Http::assertSent(fn ($req) => str_starts_with($req->url(), 'https://custom.runpod.io/v1/pods'));
+});
+
+// =============================================================================
+// runServerlessSync
+// =============================================================================
+
+it('returns response from runServerlessSync when successful', function () {
+    Http::fake([
+        'https://api.runpod.ai/v2/ep-123/runsync' => Http::response(['output' => 'result', 'status' => 'COMPLETED'], 200),
+    ]);
+
+    $client = new RunPodClient('test-key');
+    $result = $client->runServerlessSync('ep-123', ['prompt' => 'hello']);
+
+    expect($result)->toBe(['output' => 'result', 'status' => 'COMPLETED']);
+});
+
+it('returns null from runServerlessSync when request fails', function () {
+    Http::fake([
+        'https://api.runpod.ai/v2/ep-123/runsync' => Http::response([], 500),
+    ]);
+
+    $client = new RunPodClient('test-key');
+    $result = $client->runServerlessSync('ep-123', []);
+
+    expect($result)->toBeNull()
+        ->and($client->getLastError())->not->toBeNull();
+});
+
+it('getTemplateByName returns template when name matches', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/templates' => Http::response([['id' => 't1', 'name' => 'my-template']], 200),
+    ]);
+
+    $client = new RunPodClient('test-key');
+
+    expect($client->getTemplateByName('my-template'))->toBe(['id' => 't1', 'name' => 'my-template']);
+});
+
+it('getTemplateByName returns null when no match', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/templates' => Http::response([['id' => 't1', 'name' => 'other']], 200),
+    ]);
+
+    $client = new RunPodClient('test-key');
+
+    expect($client->getTemplateByName('nonexistent'))->toBeNull();
+});

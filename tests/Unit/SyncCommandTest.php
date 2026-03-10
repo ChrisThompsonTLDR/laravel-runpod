@@ -1,7 +1,7 @@
 <?php
 
 use ChrisThompsonTLDR\LaravelRunPod\Console\SyncCommand;
-use ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod;
+use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodFileManager;
 use ChrisThompsonTLDR\LaravelRunPod\Tests\TestCase;
 use Illuminate\Support\Facades\Artisan;
@@ -19,7 +19,10 @@ it('calls syncAll and outputs success when no path option', function () {
     $mockFileManager = \Mockery::mock(RunPodFileManager::class);
     $mockFileManager->shouldReceive('syncAll')->once()->andReturnSelf();
 
-    RunPod::shouldReceive('disk')->once()->andReturn($mockFileManager);
+    $mockRunPod = \Mockery::mock(RunPod::class);
+    $mockRunPod->shouldReceive('disk')->withNoArgs()->once()->andReturn($mockFileManager);
+
+    app()->instance(RunPod::class, $mockRunPod);
 
     $exitCode = Artisan::call('runpod:sync');
 
@@ -34,14 +37,18 @@ it('syncs single file when path is file', function () {
     }
     file_put_contents($loadPath.'/doc.pdf', 'content');
 
-    config(['runpod.load_path' => $loadPath]);
+    $mockFileManager = \Mockery::mock(RunPodFileManager::class);
+    $mockFileManager->shouldReceive('syncFrom')->with(\Mockery::on(fn ($p) => str_ends_with($p, 'doc.pdf')))->once();
+
+    $mockRunPod = \Mockery::mock(RunPod::class);
+    $mockRunPod->shouldReceive('disk')->withNoArgs()->andReturn($mockFileManager);
+
+    app()->instance(RunPod::class, $mockRunPod);
 
     $exitCode = Artisan::call('runpod:sync', ['--path' => 'doc.pdf']);
 
     expect($exitCode)->toBe(0)
         ->and(Artisan::output())->toContain('Synced: doc.pdf');
-
-    expect(Storage::disk('runpod')->exists('data/doc.pdf'))->toBeTrue();
 });
 
 it('syncs directory when path is directory', function () {
@@ -56,7 +63,13 @@ it('syncs directory when path is directory', function () {
     file_put_contents($loadPath.'/subdir/a.txt', 'a');
     file_put_contents($loadPath.'/subdir/b.txt', 'b');
 
-    config(['runpod.load_path' => $loadPath]);
+    $mockFileManager = \Mockery::mock(RunPodFileManager::class);
+    $mockFileManager->shouldReceive('syncFrom')->andReturnSelf();
+
+    $mockRunPod = \Mockery::mock(RunPod::class);
+    $mockRunPod->shouldReceive('disk')->withNoArgs()->andReturn($mockFileManager);
+
+    app()->instance(RunPod::class, $mockRunPod);
 
     $exitCode = Artisan::call('runpod:sync', ['--path' => 'subdir/']);
 
@@ -65,7 +78,10 @@ it('syncs directory when path is directory', function () {
 });
 
 it('returns failure when path not found', function () {
-    config(['runpod.load_path' => storage_path('app/runpod')]);
+    $mockFileManager = \Mockery::mock(RunPodFileManager::class);
+    $mockRunPod = \Mockery::mock(RunPod::class);
+    $mockRunPod->shouldReceive('disk')->withNoArgs()->andReturn($mockFileManager);
+    app()->instance(RunPod::class, $mockRunPod);
 
     $exitCode = Artisan::call('runpod:sync', ['--path' => 'nonexistent.pdf']);
 

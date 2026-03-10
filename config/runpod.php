@@ -3,6 +3,10 @@
 return [
     'disk' => 'runpod',
 
+    'dashboard' => [
+        'middleware' => ['web', 'can:viewRunpod'],
+    ],
+
     'guardrails' => [
         'enabled' => true,
         'cache_schedule' => 'everyFifteenMinutes',
@@ -22,76 +26,68 @@ return [
         ],
     ],
 
-    'load_path' => storage_path('app/runpod'),
-
-    'remote_prefix' => 'data',
-
-    's3' => [
-        'key' => env('RUNPOD_S3_ACCESS_KEY'),
-        'secret' => env('RUNPOD_S3_SECRET_KEY'),
-        'region' => env('RUNPOD_S3_REGION', 'US-MD-1'),
-        'bucket' => env('RUNPOD_NETWORK_VOLUME_ID'),  // Network volume ID = S3 bucket name
-        'endpoint' => env('RUNPOD_S3_ENDPOINT', 'https://s3api-us-md-1.runpod.io'),
-    ],
-
     'api_key' => env('RUNPOD_API_KEY'),
-
-    'state_file' => storage_path('app/runpod-pod-state.json'),
-
-    'stats_file' => storage_path('app/runpod-stats.json'),
-
-    'prune_schedule' => 'everyFiveMinutes',
 
     /*
     |--------------------------------------------------------------------------
-    | Instances (pods/serverless)
+    | Instances (pods/serverless/local)
     |--------------------------------------------------------------------------
     |
-    | Each instance controls its own pod config. The top-level 'pod' below is
-    | used only as fallback when an instance omits a key. Put all instance-
-    | specific values (inactivity_minutes, gpu_count, volume_in_gb, etc.) in
-    | the instance's 'pod' block.
+    | Each instance has type (pod|serverless|local), storage, and pod params.
+    | Pod params: spec, image_name, name, ports, inactivity_minutes, etc.
     |
     */
     'instances' => [
-        'pymupdf' => [
+        'example' => [
             'type' => 'pod',
+            'load_path' => storage_path('app/runpod'),
+            'local_disk' => 'runpod_local',
+            'state_file' => storage_path('app/runpod-pod-state-example.json'),
+            'stats_file' => storage_path('app/runpod-stats-example.json'),
+            'remote_disk' => [
+                'disk_name' => 'runpod',
+                'prefix' => 'data',
+                'key' => env('RUNPOD_S3_ACCESS_KEY'),
+                'secret' => env('RUNPOD_S3_SECRET_KEY'),
+                'region' => 'US-MD-1',
+                'bucket' => env('RUNPOD_NETWORK_VOLUME_ID'),
+                'endpoint' => 'https://s3api-us-md-1.runpod.io',
+            ],
             'prune_schedule' => 'everyFiveMinutes',
-            'pod' => [
-                'inactivity_minutes' => 2,
-                'gpu_type_id' => 'NVIDIA GeForce RTX 4090',
-                'gpu_count' => 0,
-                'volume_in_gb' => 50,
-                'container_disk_in_gb' => 50,
-                'min_vcpu_count' => 2,
-                'min_memory_in_gb' => 15,
-                'image_name' => 'ghcr.io/christhompsontldr/docker-pymupdf-tesseract:latest',
-                'name' => 'eyejay-pymupdf',
-                'ports' => '8000/http',
-                'volume_mount_path' => '/workspace',
-                'network_volume_id' => null,
-                'data_center_ids' => ['US-MD-1'],
-                'cloud_type' => 'SECURE',
-                'env' => [
-                    ['key' => 'PYMUPDF_DATA_DIR', 'value' => '/workspace'],
-                    ['key' => 'PYMUPDF_OUTPUT_DIR', 'value' => '/workspace/output'],
-                ],
+            'inactivity_minutes' => 2,
+            'spec' => ['cpu5c-16-32', 'cpu5g-16-32'],
+            'image_name' => 'nginx:alpine',
+            'name' => 'runpod-example',
+            'ports' => '80/http',
+        ],
+        'example-local' => [
+            'type' => 'local',
+            'load_path' => storage_path('app/runpod'),
+            'local_disk' => 'runpod_local',
+            'local_url' => 'http://example:80',
+            'state_file' => storage_path('app/runpod-pod-state-example-local.json'),
+            'stats_file' => storage_path('app/runpod-stats-example-local.json'),
+            'image_name' => 'nginx:alpine',
+            'name' => 'runpod-example-local',
+            'ports' => '80/http',
+        ],
+        'example-serverless' => [
+            'type' => 'serverless',
+            'load_path' => storage_path('app/runpod'),
+            'remote_disk' => [
+                'disk_name' => 'runpod',
+                'prefix' => 'data',
+                'key' => env('RUNPOD_S3_ACCESS_KEY'),
+                'secret' => env('RUNPOD_S3_SECRET_KEY'),
+                'region' => 'US-MD-1',
+                'bucket' => env('RUNPOD_NETWORK_VOLUME_ID'),
+                'endpoint' => 'https://s3api-us-md-1.runpod.io',
+            ],
+            'endpoint_state_file' => storage_path('app/runpod-endpoint-state-example-serverless.json'),
+            'stats_file' => storage_path('app/runpod-stats-example-serverless.json'),
+            'serverless' => [
+                'endpoint_name' => 'runpod-example-serverless',
             ],
         ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Default pod config (fallback when instance omits keys)
-    |--------------------------------------------------------------------------
-    */
-    'pod' => [
-        'inactivity_minutes' => 2,
-        'gpu_type_id' => 'NVIDIA GeForce RTX 4090',
-        'gpu_count' => 0,
-        'volume_in_gb' => 50,
-        'container_disk_in_gb' => 50,
-        'min_vcpu_count' => 2,
-        'min_memory_in_gb' => 15,
     ],
 ];

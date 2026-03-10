@@ -32,14 +32,15 @@ class ListCommand extends Command
             return self::SUCCESS;
         }
 
-        $basePod = config('runpod.pod', []);
         $rows = [];
         foreach ($instances as $name => $config) {
             $type = $config['type'] ?? 'pod';
-            $prune = $config['prune_schedule'] ?? ($type === 'pod' ? config('runpod.prune_schedule', 'everyFiveMinutes') : '-');
-            $podConfig = array_merge($basePod, $config['pod'] ?? []);
-            $image = $podConfig['image_name'] ?? '-';
-            $status = $type === 'pod' && $podClient ? $this->podStatus($name, $podClient) : '-';
+            $prune = $config['prune_schedule'] ?? ($type === 'pod' ? 'everyFiveMinutes' : '-');
+            $image = $config['image_name'] ?? '-';
+            $isLocal = ($config['type'] ?? 'pod') === 'local';
+            $status = $isLocal
+                ? 'local ('.($config['local_url'] ?? '-').')'
+                : ($type === 'pod' && $podClient ? $this->podStatus($name, $podClient) : '-');
 
             $rows[] = [
                 $name,
@@ -91,7 +92,7 @@ class ListCommand extends Command
 
         $lastRunAt = $state['last_run_at'] ?? null;
         $podConfig = RunPod::mergedPodConfigForInstance($instance);
-        $inactivityMinutes = (int) ($podConfig['inactivity_minutes'] ?? config('runpod.pod.inactivity_minutes', 2));
+        $inactivityMinutes = (int) ($podConfig['inactivity_minutes'] ?? 2);
 
         $startTime = $this->formatStartTime($pod);
         $shutdownIn = $this->formatShutdownIn($lastRunAt, $inactivityMinutes);
@@ -137,14 +138,10 @@ class ListCommand extends Command
         if (! empty($config['state_file'])) {
             return $config['state_file'];
         }
-        $base = config('runpod.state_file', storage_path('app/runpod-pod-state.json'));
+
         $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $instance);
 
-        if (str_ends_with($base, '.json')) {
-            return preg_replace('/\.json$/', "-{$safe}.json", $base);
-        }
-
-        return $base.'.'.$safe;
+        return storage_path("app/runpod-pod-state-{$safe}.json");
     }
 
     /**
@@ -157,12 +154,6 @@ class ListCommand extends Command
         $pods = $client->listPods();
         if (empty($pods)) {
             return [];
-        }
-        if (! is_array($pods)) {
-            return [];
-        }
-        if (isset($pods['data']) && is_array($pods['data'])) {
-            $pods = $pods['data'];
         }
 
         $instanceNames = $this->instancePodNames();
@@ -203,7 +194,7 @@ class ListCommand extends Command
             if (($config['type'] ?? 'pod') !== 'pod') {
                 continue;
             }
-            $podName = $config['pod']['name'] ?? null;
+            $podName = $config['name'] ?? null;
             if ($podName) {
                 $out[$name] = $podName;
             }

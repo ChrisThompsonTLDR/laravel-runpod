@@ -5,15 +5,16 @@ namespace ChrisThompsonTLDR\LaravelRunPod\Concerns;
 use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 
 /**
- * Trait for jobs that use RunPod. Automatically refreshes last_run_at after
- * pod work completes, keeping the pod alive for the prune timer.
+ * Trait for jobs that use RunPod. Refreshes last_run_at in a finally block
+ * after your pod work completes, keeping the pod alive for the prune timer.
  *
- * Use withRunPodRefresh() to wrap your post-pod work; for() fires in finally.
+ * Override runPodInstance() to return your instance name (must exist in config).
+ * Use withRunPodRefresh() to wrap the work that uses the pod.
  */
 trait RefreshesRunPod
 {
     /**
-     * The RunPod instance name (e.g. 'pymupdf'). Override in your job.
+     * The RunPod instance name (e.g. 'example'). Override in your job.
      */
     protected function runPodInstance(): string
     {

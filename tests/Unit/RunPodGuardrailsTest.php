@@ -323,3 +323,58 @@ it('check passes when pod limits empty', function () {
 
     expect(true)->toBeTrue();
 });
+
+it('checkBeforeCreatePod passes when under limit', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods*' => Http::response([['id' => '1']], 200),
+        'https://rest.runpod.io/v1/endpoints*' => Http::response([], 200),
+        'https://rest.runpod.io/v1/networkvolumes*' => Http::response([], 200),
+    ]);
+
+    config([
+        'runpod.guardrails.limits' => [
+            'pods' => ['pods_max' => 5, 'pods_running_max' => 3],
+        ],
+    ]);
+
+    $guardrails = app(RunPodGuardrails::class);
+    $guardrails->checkBeforeCreatePod();
+
+    expect(true)->toBeTrue();
+});
+
+it('getUsageFresh bypasses cache', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods*' => Http::response([], 200),
+        'https://rest.runpod.io/v1/endpoints*' => Http::response([], 200),
+        'https://rest.runpod.io/v1/networkvolumes*' => Http::response([], 200),
+    ]);
+
+    $guardrails = app(RunPodGuardrails::class);
+    $guardrails->getUsageFresh();
+    $guardrails->getUsageFresh();
+
+    Http::assertSentCount(6); // 2 calls × 3 endpoints each, no cache
+});
+
+it('limit of zero disables that check', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods*' => Http::response(
+            [['id' => '1'], ['id' => '2'], ['id' => '3']],
+            200
+        ),
+        'https://rest.runpod.io/v1/endpoints*' => Http::response([], 200),
+        'https://rest.runpod.io/v1/networkvolumes*' => Http::response([], 200),
+    ]);
+
+    config([
+        'runpod.guardrails.limits' => [
+            'pods' => ['pods_max' => 0, 'pods_running_max' => 0],
+        ],
+    ]);
+
+    $guardrails = app(RunPodGuardrails::class);
+    $guardrails->check();
+
+    expect(true)->toBeTrue();
+});

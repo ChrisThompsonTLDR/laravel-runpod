@@ -1,6 +1,7 @@
 <?php
 
 use ChrisThompsonTLDR\LaravelRunPod\RunPodClient;
+use ChrisThompsonTLDR\LaravelRunPod\RunPodGraphQLClient;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodPodClient;
 use ChrisThompsonTLDR\LaravelRunPod\Tests\TestCase;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +12,108 @@ covers(RunPodPodClient::class);
 
 beforeEach(function () {
     Http::preventStrayRequests();
+});
+
+it('delegates getPod to client', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods/pod-123' => Http::response(['id' => 'pod-123', 'desiredStatus' => 'RUNNING'], 200),
+    ]);
+
+    $podClient = new RunPodPodClient(new RunPodClient('test-key'));
+
+    expect($podClient->getPod('pod-123'))->toBe(['id' => 'pod-123', 'desiredStatus' => 'RUNNING']);
+});
+
+it('returns telemetry from getPodTelemetry when graphql provided', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods*' => Http::response([], 200),
+        'https://api.runpod.io/graphql' => Http::response([
+            'data' => ['pod' => ['latestTelemetry' => ['cpuUtilization' => 50]]],
+        ], 200),
+    ]);
+
+    $podClient = new RunPodPodClient(
+        new RunPodClient('test-key'),
+        new RunPodGraphQLClient('test-key')
+    );
+
+    expect($podClient->getPodTelemetry('pod-123'))->toBe(['cpuUtilization' => 50]);
+});
+
+it('returns null from getPodTelemetry when graphql not provided', function () {
+    $podClient = new RunPodPodClient(new RunPodClient('test-key'));
+
+    expect($podClient->getPodTelemetry('pod-123'))->toBeNull();
+});
+
+it('returns endpoint from getServerlessEndpointByName when name matches', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/endpoints*' => Http::response([
+            ['id' => 'ep-abc', 'name' => 'my-endpoint'],
+        ], 200),
+    ]);
+
+    $podClient = new RunPodPodClient(new RunPodClient('test-key'));
+
+    expect($podClient->getServerlessEndpointByName('my-endpoint'))->toBe([
+        'url' => 'https://api.runpod.ai/v2/ep-abc/runsync',
+        'endpoint_id' => 'ep-abc',
+    ]);
+});
+
+it('getServerlessEndpointByName matches prefix with space', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/endpoints*' => Http::response([
+            ['id' => 'ep-xyz', 'name' => 'my-endpoint (active)'],
+        ], 200),
+    ]);
+
+    $podClient = new RunPodPodClient(new RunPodClient('test-key'));
+
+    expect($podClient->getServerlessEndpointByName('my-endpoint'))->toBe([
+        'url' => 'https://api.runpod.ai/v2/ep-xyz/runsync',
+        'endpoint_id' => 'ep-xyz',
+    ]);
+});
+
+it('returns null from getServerlessEndpointByName when no match', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/endpoints*' => Http::response([
+            ['id' => 'ep-abc', 'name' => 'other-endpoint'],
+        ], 200),
+    ]);
+
+    $podClient = new RunPodPodClient(new RunPodClient('test-key'));
+
+    expect($podClient->getServerlessEndpointByName('nonexistent'))->toBeNull();
+});
+
+it('returns tcp url with publicIp and portMappings', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods/pod-123' => Http::response([
+            'ports' => ['22/tcp'],
+            'publicIp' => '1.2.3.4',
+            'portMappings' => ['22' => 12345],
+        ], 200),
+    ]);
+
+    $podClient = new RunPodPodClient(new RunPodClient('test-key'));
+
+    expect($podClient->getPublicUrl('pod-123', 22))->toBe('http://1.2.3.4:12345');
+});
+
+it('uses portMappings fallback when ports empty', function () {
+    Http::fake([
+        'https://rest.runpod.io/v1/pods/pod-123' => Http::response([
+            'ports' => [],
+            'publicIp' => '1.2.3.4',
+            'portMappings' => ['8000' => 54321],
+        ], 200),
+    ]);
+
+    $podClient = new RunPodPodClient(new RunPodClient('test-key'));
+
+    expect($podClient->getPublicUrl('pod-123', 8000))->toBe('http://1.2.3.4:54321');
 });
 
 it('returns fallback url when pod is null', function () {

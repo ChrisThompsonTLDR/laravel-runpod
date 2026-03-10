@@ -8,13 +8,33 @@ use Illuminate\Console\Command;
 class SyncCommand extends Command
 {
     protected $signature = 'runpod:sync
-        {--path= : Sync a specific file or directory relative to load_path}';
+        {--path= : Sync a specific file or directory relative to load_path}
+        {--instance= : Instance name (e.g. example). Omit for default.}';
 
     protected $description = 'Sync files from load path to RunPod network volume';
 
     public function handle(): int
     {
         $path = $this->option('path');
+        $instance = $this->option('instance');
+        $instances = config('runpod.instances', []);
+
+        $fileManager = $instance
+            ? RunPod::instance($instance)->disk()
+            : RunPod::disk();
+
+        if ($instance) {
+            if (! isset($instances[$instance])) {
+                $this->error("Unknown instance: {$instance}. Configure in config/runpod.php under 'instances'.");
+
+                return self::FAILURE;
+            }
+            if (($instances[$instance]['type'] ?? 'pod') === 'local') {
+                $this->info("Instance {$instance} is in local mode; sync skipped (files shared via bind mount).");
+
+                return self::SUCCESS;
+            }
+        }
 
         if ($path) {
             if (str_contains($path, '..')) {
@@ -23,7 +43,9 @@ class SyncCommand extends Command
                 return self::FAILURE;
             }
 
-            $basePath = rtrim(config('runpod.load_path'), '/');
+            $basePath = $instance
+                ? rtrim($instances[$instance]['load_path'] ?? storage_path('app/runpod'), '/')
+                : rtrim(storage_path('app/runpod'), '/');
             $fullPath = $basePath.'/'.ltrim(str_replace('\\', '/', $path), '/');
             $resolvedFull = realpath($fullPath);
             $resolvedBase = realpath($basePath) ?: $basePath;
@@ -37,7 +59,7 @@ class SyncCommand extends Command
             $fullPath = $resolvedFull ?: $fullPath;
 
             if (is_file($fullPath)) {
-                RunPod::disk()->syncFrom($fullPath);
+                $fileManager->syncFrom($fullPath);
                 $this->info('Synced: '.$path);
             } elseif (is_dir($fullPath)) {
                 $files = new \RecursiveIteratorIterator(
@@ -46,10 +68,8 @@ class SyncCommand extends Command
                 );
                 $count = 0;
                 foreach ($files as $file) {
-                    if ($file->isFile()) {
-                        RunPod::disk()->syncFrom($file->getPathname());
-                        $count++;
-                    }
+                    $fileManager->syncFrom($file->getPathname());
+                    $count++;
                 }
                 $this->info("Synced {$count} files from: {$path}");
             } else {
@@ -58,7 +78,7 @@ class SyncCommand extends Command
                 return self::FAILURE;
             }
         } else {
-            RunPod::disk()->syncAll();
+            $fileManager->syncAll();
             $this->info('Synced entire load path to RunPod.');
         }
 

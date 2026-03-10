@@ -1,313 +1,90 @@
+```
+  _                              _   ____              ____           _ 
+ | |    __ _ _ __ __ ___   _____| | |  _ \ _   _ _ __ |  _ \ ___   __| |
+ | |   / _` | '__/ _` \ \ / / _ \ | | |_) | | | | '_ \| |_) / _ \ / _` |
+ | |__| (_| | | | (_| |\ V /  __/ | |  _ <| |_| | | | |  __/ (_) | (_| |
+ |_____\__,_|_|  \__,_| \_/ \___|_| |_| \_\\__,_|_| |_|_|   \___/ \__,_|
+```
+
 # Laravel RunPod
 
-Laravel integration for the [RunPod REST API](https://rest.runpod.io/v1) and RunPod S3-compatible network volume storage. Provides a fluent, Laravel-esque interface for managing pods, serverless endpoints, network volumes, templates, container registry auths, billing, and file storage.
+Laravel integration for the [RunPod REST API](https://rest.runpod.io/v1) and S3-compatible network volume storage.
+
+**[Documentation](https://christhompsontldr.github.io/laravel-runpod/)**
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.3+
 - Laravel 11 or 12
 
 ## Installation
 
 ```bash
 composer require christhompsontldr/laravel-runpod
-```
-
-## Configuration
-
-Publish the config file:
-
-```bash
 php artisan vendor:publish --tag=laravel-runpod-config
 ```
 
-Add the following to `.env`:
+Add to `.env`: `RUNPOD_API_KEY`, `RUNPOD_S3_ACCESS_KEY`, `RUNPOD_S3_SECRET_KEY`, `RUNPOD_S3_ENDPOINT`, `RUNPOD_S3_REGION`, `RUNPOD_NETWORK_VOLUME_ID`. See [Configuration](https://christhompsontldr.github.io/laravel-runpod/configuration.html).
 
-```
-# RunPod API key (from RunPod Settings > API Keys)
-RUNPOD_API_KEY=
-
-# S3-compatible network volume storage
-RUNPOD_S3_ACCESS_KEY=
-RUNPOD_S3_SECRET_KEY=
-RUNPOD_S3_ENDPOINT=https://s3api-eu-ro-1.runpod.io
-RUNPOD_S3_REGION=EU-RO-1
-RUNPOD_NETWORK_VOLUME_ID=
-
-# Per-instance overrides (e.g. RUNPOD_PYMUPDF_NETWORK_VOLUME_ID, RUNPOD_PYMUPDF_IMAGE)
-# See config/runpod.php instances[].pod for image_name, network_volume_id, etc.
-
-# Local path to sync files from (default: storage/app/runpod)
-RUNPOD_LOAD_PATH=
-
-# S3 prefix that maps to /workspace/data/ on a pod
-RUNPOD_REMOTE_PREFIX=data
-
-# Pod inactivity timeout in minutes before auto-prune
-RUNPOD_POD_INACTIVITY_MINUTES=2
-
-# Docker image (optional; config has per-instance defaults)
-RUNPOD_POD_IMAGE=
-```
-
-## Usage
-
-### RunPod API Client
-
-Inject or resolve `RunPodClient` to call the full RunPod REST API directly:
-
-```php
-use ChrisThompsonTLDR\LaravelRunPod\RunPodClient;
-
-$client = app(RunPodClient::class);
-
-// Pods
-$pods    = $client->listPods();
-$pod     = $client->getPod($podId);
-$pod     = $client->createPod(['imageName' => 'runpod/base:0.4.0', 'name' => 'my-pod', ...]);
-$client->startPod($podId);
-$client->stopPod($podId);
-$client->restartPod($podId);
-$client->resetPod($podId);
-$client->updatePod($podId, ['name' => 'new-name']);
-$client->deletePod($podId);
-
-// Serverless endpoints
-$endpoints = $client->listEndpoints();
-$endpoint  = $client->getEndpoint($endpointId);
-$endpoint  = $client->createEndpoint(['templateId' => '...', 'name' => 'my-endpoint', ...]);
-$client->updateEndpoint($endpointId, ['workersMax' => 5]);
-$client->deleteEndpoint($endpointId);
-
-// Network volumes
-$volumes = $client->listNetworkVolumes();
-$volume  = $client->getNetworkVolume($volumeId);
-$volume  = $client->createNetworkVolume(['dataCenterId' => 'EU-RO-1', 'name' => 'my-vol', 'size' => 20]);
-$client->updateNetworkVolume($volumeId, ['name' => 'new-name']);
-$client->deleteNetworkVolume($volumeId);
-
-// Templates
-$templates = $client->listTemplates();
-$template  = $client->getTemplate($templateId);
-$template  = $client->createTemplate(['imageName' => 'runpod/base:0.4.0', 'name' => 'my-template']);
-$client->updateTemplate($templateId, ['name' => 'new-name']);
-$client->deleteTemplate($templateId);
-
-// Container registry auths
-$auths = $client->listContainerRegistryAuths();
-$auth  = $client->getContainerRegistryAuth($authId);
-$auth  = $client->createContainerRegistryAuth(['name' => 'my-reg', 'username' => 'user', 'password' => 'pass']);
-$client->deleteContainerRegistryAuth($authId);
-
-// Billing
-$podBilling     = $client->getPodBilling(['startDate' => '2024-01-01']);
-$epBilling      = $client->getEndpointBilling();
-$volumeBilling  = $client->getNetworkVolumeBilling();
-```
-
-### Fluent control plane
-
-Use the `RunPod` class (or its facade) for a higher-level, Laravel-esque workflow that combines pod lifecycle management and file storage:
+## Quick Start
 
 ```php
 use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 
-$runPod = app(RunPod::class)->for(PymupdfJob::class);
-
-// File operations via the configured S3 disk
-$runPod->disk('runpod')->ensure($filename);
-
-// Start a named pod instance (configured in config/runpod.php)
-$pod = $runPod->instance('pymupdf')->start();
+$pod = RunPod::instance('example')->start();
 $url = $pod['url'];
+
+// File ops (disk chosen from instance config)
+RunPod::instance('example')->disk()->ensure('file.pdf');
 ```
 
-Or via the facade (add alias in `config/app.php`):
+Event listeners can start a pod with one call: `RunPod::instance('example')->start()`.
 
-```php
-// 'RunPod' => ChrisThompsonTLDR\LaravelRunPod\Facades\RunPod::class
+## Artisan Commands
 
-RunPod::for(self::class)->disk('runpod')->ensure($filename);
-$pod = RunPod::instance('pymupdf')->start();
-```
+| Command | Description |
+|---------|-------------|
+| `runpod:sync` | Sync files from load path to RunPod storage |
+| `runpod:start {instance}` | Ensure pod is running |
+| `runpod:list` | List instances and status |
+| `runpod:prune {instance?}` | Terminate inactive pods |
+| `runpod:guardrails` | Refresh usage cache |
+| `runpod:stats {instance?}` | Refresh dashboard stats |
+| `runpod:dashboard {instance}` | Terminal dashboard (Termwind Live) |
+| `runpod:flush --force` | Delete all pods and endpoints |
+| `runpod:inspect {instance}` | Inspect pod details |
 
-### Fluent file management
+## Local Docker
 
-```php
-use Illuminate\Support\Facades\Storage;
+Run any container locally (Sail/Compose)—e.g. `nginx:alpine`—by setting `type` to `local` and `local_url` for an instance. No API calls or S3; files shared via bind mount. See [Local Docker](https://christhompsontldr.github.io/laravel-runpod/local-docker.html).
 
-// Ensure a file exists on RunPod (syncs from load path if missing)
-Storage::runpod()->ensure('document.pdf');
+## Web Dashboard
 
-// Sync a specific file from load path
-Storage::runpod()->syncFrom('path/to/file.pdf');
+When Livewire and Flux are installed: `/runpod/dashboard/{instance?}`. Protected by `viewRunpod` gate. `php artisan livewire:layout` for layout; `php artisan vendor:publish --tag=laravel-runpod-dashboard` to customize views.
 
-// Put content directly
-Storage::runpod()->put('data/file.pdf', $contents);
-
-// Check existence
-Storage::runpod()->exists('data/file.pdf');
-```
-
-### Artisan commands
-
-Sync files from the local load path to RunPod storage:
-
-```bash
-php artisan runpod:sync
-php artisan runpod:sync --path=document.pdf
-php artisan runpod:sync --path=subdir/
-```
-
-List configured instances:
-
-```bash
-php artisan runpod:list
-```
-
-Ensure a RunPod instance is running (create and wait if needed):
-
-```bash
-php artisan runpod:start pymupdf
-```
-
-Prune inactive pods:
-
-```bash
-php artisan runpod:prune
-php artisan runpod:prune pymupdf
-```
-
-Refresh or clear the guardrails usage cache:
-
-```bash
-php artisan runpod:guardrails
-php artisan runpod:guardrails --clear
-```
-
-Refresh the stats file for dashboards (runs on schedule every 2 minutes):
-
-```bash
-php artisan runpod:stats
-php artisan runpod:stats pymupdf
-```
-
-Live terminal dashboard (requires `nunomaduro/termwind` and `xico2k/termwind-plugin-live`):
-
-```bash
-composer require nunomaduro/termwind xico2k/termwind-plugin-live
-php artisan runpod:dashboard pymupdf
-php artisan runpod:dashboard pymupdf --refresh=5
-```
-
-### Web dashboard (Livewire + Flux)
-
-When your app has Livewire and Flux installed, the RunPod dashboard is available at `/runpod/dashboard/{instance?}`. It reads from the stats file and polls every 15 seconds. Publish views to customize:
-
-```bash
-php artisan vendor:publish --tag=laravel-runpod-dashboard
-```
-
-### Scheduled sync
-
-In `routes/console.php`:
-
-```php
-Schedule::command('runpod:sync')->everyFiveMinutes();
-```
-
-### RefreshesRunPod trait
-
-Automatically refresh `last_run_at` after pod work completes to keep the pod alive until the prune timer fires:
+## RefreshesRunPod Trait
 
 ```php
 use ChrisThompsonTLDR\LaravelRunPod\Concerns\RefreshesRunPod;
 
-class PymupdfJob implements ShouldQueue
+class ExampleJob implements ShouldQueue
 {
     use RefreshesRunPod;
 
-    protected function runPodInstance(): string
-    {
-        return 'pymupdf';
-    }
+    protected function runPodInstance(): string { return 'example'; }
 
-    protected function handleRunPod(): void
+    public function handle(): void
     {
-        $pod = RunPod::instance('pymupdf')->start();
-
-        $this->withRunPodRefresh(function () use ($pod) {
-            $response = Http::post($pod['url'].'/extract', [...]);
-            // process response
-        }); // for() fires automatically in finally
+        $pod = RunPod::instance('example')->start();
+        $this->withRunPodRefresh(fn () => Http::post($pod['url'].'/extract', [...]));
     }
 }
 ```
 
-### Named instances (multiple pods/serverless)
+## Guardrails
 
-Configure named pod or serverless instances in `config/runpod.php` under `instances`. Each instance has its own state file, prune schedule, and can override `image_name`, `network_volume_id`, etc. Use `php artisan runpod:list` to see configured instances.
+Configure limits in `config/runpod.php` under `guardrails.limits`. When exceeded: `GuardrailsExceededException` and `GuardrailsTripped` event.
 
-```php
-'instances' => [
-    'pymupdf' => [
-        'type' => 'pod',
-        'prune_schedule' => 'everyFiveMinutes',
-        'pod' => [
-            'image_name' => env('RUNPOD_PYMUPDF_IMAGE', env('RUNPOD_POD_IMAGE')),
-            'network_volume_id' => env('RUNPOD_PYMUPDF_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
-            'gpu_count' => 0,
-            'name' => env('RUNPOD_PYMUPDF_POD_NAME', 'eyejay-pymupdf'),
-            'ports' => env('RUNPOD_POD_PORTS', '8000/http'),
-            'volume_mount_path' => env('RUNPOD_POD_VOLUME_MOUNT', '/workspace'),
-            'env' => [
-                ['key' => 'PYMUPDF_DATA_DIR', 'value' => '/workspace'],
-            ],
-        ],
-    ],
-    'docling' => [
-        'type' => 'pod',
-        'prune_schedule' => 'everyFiveMinutes',
-        'pod' => [
-            'image_name' => env('RUNPOD_DOCLING_IMAGE'),
-            'network_volume_id' => env('RUNPOD_DOCLING_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
-            'gpu_count' => 1,
-            'name' => env('RUNPOD_DOCLING_POD_NAME', 'eyejay-docling'),
-            // ... other overrides
-        ],
-    ],
-],
-```
+## License
 
-- **Start:** `php artisan runpod:start pymupdf` or `runpod:start docling`
-- **Prune:** `php artisan runpod:prune pymupdf` (or omit for default)
-
-### Guardrails
-
-Limit RunPod API usage to avoid unexpected spend. When a limit is exceeded, `GuardrailsExceededException` is thrown and `GuardrailsTripped` is dispatched:
-
-```php
-use ChrisThompsonTLDR\LaravelRunPod\Events\GuardrailsTripped;
-
-Event::listen(GuardrailsTripped::class, function (GuardrailsTripped $event) {
-    Log::warning('RunPod guardrail tripped', [
-        'service'     => $event->service,
-        'limit'       => $event->limit,
-        'current'     => $event->current,
-        'limit_value' => $event->limitValue,
-    ]);
-});
-```
-
-Configure limits in `config/runpod.php` under `guardrails.limits`:
-
-- `pods.pods_max` - maximum total pods
-- `pods.pods_running_max` - maximum running pods
-- `serverless.endpoints_max` - maximum serverless endpoints
-- `serverless.workers_total_max` - maximum total serverless workers
-- `storage.network_volumes_max` - maximum network volumes
-- `storage.volume_size_gb_max` - maximum total storage in GB
-
-## Storage cost
-
-RunPod network volume pricing starts at $0.07/GB/month. See [RunPod pricing](https://www.runpod.io/pricing) for current rates.
+MIT

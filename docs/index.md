@@ -5,12 +5,12 @@ Laravel integration for the [RunPod REST API](https://rest.runpod.io/v1) and Run
 ## Features
 
 - **RunPod REST API client** — Full access to pods, serverless endpoints, network volumes, templates, container registry auths, and billing
-- **Fluent control plane** — `RunPod::for(Job::class)->instance('pymupdf')->start()` for pod lifecycle and file management
+- **Fluent control plane** — `RunPod::for(Job::class)->instance('example')->start()` for pod lifecycle and file management
 - **S3 file management** — Sync files to/from RunPod network volumes via `RunPodFileManager`
 - **Named instances** — Multiple pod/serverless configs in `config/runpod.php`
 - **Guardrails** — Usage limits (pods, serverless, storage) with `GuardrailsExceededException` and `GuardrailsTripped` event
 - **Artisan commands** — Sync, start, list, prune, guardrails, stats, dashboard, flush, inspect
-- **Web dashboard** — Livewire + Flux at `/runpod/dashboard/{instance?}`
+- **Web dashboard** — Livewire v4 SPC at `/runpod/dashboard/{instance?}` (protected by `viewRunpod` gate)
 - **Terminal dashboard** — Optional `runpod:dashboard` with Termwind Live
 - **RefreshesRunPod trait** — Keeps pods alive during job execution via `last_run_at`
 - **Scheduled tasks** — Auto-prune, guardrails cache refresh, stats refresh

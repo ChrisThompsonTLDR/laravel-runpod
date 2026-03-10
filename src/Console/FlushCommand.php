@@ -92,17 +92,28 @@ class FlushCommand extends Command
 
     protected function clearStateFiles(): void
     {
-        $base = config('runpod.state_file', storage_path('app/runpod-pod-state.json'));
-        $paths = [$base];
+        $paths = [];
+        $instances = array_keys(config('runpod.instances', []));
 
-        foreach (array_keys(config('runpod.instances', [])) as $instance) {
+        foreach ($instances as $instance) {
             $path = $this->resolveStatePath($instance);
             if ($path && ! in_array($path, $paths, true)) {
                 $paths[] = $path;
             }
         }
 
-        foreach ($paths as $path) {
+        if (empty($instances)) {
+            $paths[] = storage_path('app/runpod-pod-state.json');
+        }
+
+        foreach ($instances as $instance) {
+            $path = $this->resolveEndpointStatePath($instance);
+            if ($path && ! in_array($path, $paths, true)) {
+                $paths[] = $path;
+            }
+        }
+
+        foreach (array_unique($paths) as $path) {
             if (is_file($path)) {
                 unlink($path);
                 $this->line("Cleared state: {$path}");
@@ -116,12 +127,23 @@ class FlushCommand extends Command
         if (! empty($config['state_file'])) {
             return $config['state_file'];
         }
-        $base = config('runpod.state_file', storage_path('app/runpod-pod-state.json'));
+
         $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $instance);
-        if (str_ends_with($base, '.json')) {
-            return preg_replace('/\.json$/', "-{$safe}.json", $base);
+
+        return storage_path("app/runpod-pod-state-{$safe}.json");
+    }
+
+    protected function resolveEndpointStatePath(string $instance): string
+    {
+        $config = config("runpod.instances.{$instance}", []);
+        if (! empty($config['endpoint_state_file'])) {
+            $path = $config['endpoint_state_file'];
+
+            return str_starts_with($path, '/') ? $path : base_path($path);
         }
 
-        return $base.'.'.$safe;
+        $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $instance);
+
+        return storage_path("app/runpod-endpoint-state-{$safe}.json");
     }
 }

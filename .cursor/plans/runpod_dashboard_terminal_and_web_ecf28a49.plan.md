@@ -57,7 +57,7 @@ flowchart TB
 
 ```json
 {
-  "instance": "pymupdf",
+  "instance": "example",
   "updated_at": "2024-07-12T19:14:40.144Z",
   "pod": { /* REST getPod response with includeMachine, includeNetworkVolume */ },
   "telemetry": { /* GraphQL latestTelemetry */ },
@@ -120,8 +120,8 @@ Create `RunPodGraphQLClient` that POSTs to `https://api.runpod.io/graphql` and f
 **Layout sketch:**
 
 ```
-┌─ RunPod Dashboard: pymupdf ─────────────────────────────────┐
-│ Pod: eyejay-pymupdf  │  Status: RUNNING  │  $0.74/hr       │
+┌─ RunPod Dashboard: example ─────────────────────────────────┐
+│ Pod: runpod-example  │  Status: RUNNING  │  $0.74/hr       │
 │ Time until prune: 01:23:45                                  │
 ├────────────────────────────────────────────────────────────┤
 │ Specs                                                      │

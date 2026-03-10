@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 class StatsCommand extends Command
 {
     protected $signature = 'runpod:stats
-        {instance? : Instance name (e.g. pymupdf). Omit to refresh all pod instances.}';
+        {instance? : Instance name (e.g. example). Omit to refresh all pod instances.}';
 
     protected $description = 'Refresh RunPod stats file for dashboards (fetches pod + telemetry, writes to JSON)';
 

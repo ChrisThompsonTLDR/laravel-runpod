@@ -23,7 +23,7 @@
     "autoload-dev": {
         "psr-4": {"ChrisThompsonTLDR\\LaravelRunPod\\Tests\\": "tests/"}
     },
-    "extra": {"laravel": {"providers": ["ChrisThompsonTLDR\\LaravelRunPod\\LaravelRunPodServiceProvider"]}},
+    "extra": {"laravel": {"providers": ["ChrisThompsonTLDR\\LaravelRunPod\\RunPodServiceProvider"]}},
     "minimum-stability": "stable",
     "require-dev": {
         "christhompsontldr/laravel-docit": "dev-main",

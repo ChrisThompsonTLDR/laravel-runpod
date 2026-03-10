@@ -53,8 +53,22 @@ it('storageSizeGb factory creates correct exception', function () {
     expect($e->getMessage())->toContain('volume_size_gb_max');
 });
 
-it('apiRequestsPerMinute factory creates correct exception', function () {
-    $e = GuardrailsExceededException::apiRequestsPerMinute(100, 60);
+it('message includes limit value and current usage', function () {
+    $e = new GuardrailsExceededException('pods', 'pods_max', 5, 3);
 
-    expect($e->getMessage())->toContain('requests_per_minute');
+    expect($e->getMessage())->toContain('limit "pods_max" is 3')
+        ->and($e->getMessage())->toContain('current usage: 5');
+});
+
+it('getCode returns zero', function () {
+    $e = GuardrailsExceededException::pods(1, 1);
+
+    expect($e->getCode())->toBe(0);
+});
+
+it('passes previous exception when provided', function () {
+    $previous = new \RuntimeException('inner');
+    $e = new GuardrailsExceededException('pods', 'pods_max', 1, 1, $previous);
+
+    expect($e->getPrevious())->toBe($previous);
 });

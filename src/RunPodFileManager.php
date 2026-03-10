@@ -9,7 +9,8 @@ class RunPodFileManager
     public function __construct(
         protected Filesystem $disk,
         protected string $loadPath,
-        protected string $remotePrefix
+        protected string $remotePrefix,
+        protected bool $isLocal = false
     ) {}
 
     public function put(string $path, $contents): self
@@ -31,6 +32,10 @@ class RunPodFileManager
 
     public function syncFrom(string $localPath): self
     {
+        if ($this->isLocal) {
+            return $this;
+        }
+
         $fullPath = $this->resolveLocalPath($localPath);
 
         if (! is_file($fullPath)) {
@@ -38,15 +43,17 @@ class RunPodFileManager
         }
 
         $relativePath = $this->relativeToLoadPath($fullPath);
-        $remotePath = $this->remotePrefix.'/'.$relativePath;
-
-        $this->disk->put($remotePath, file_get_contents($fullPath));
+        $this->disk->put($this->remotePath($relativePath), file_get_contents($fullPath));
 
         return $this;
     }
 
     public function syncAll(): self
     {
+        if ($this->isLocal) {
+            return $this;
+        }
+
         if (! is_dir($this->loadPath)) {
             throw new \RuntimeException("Load path is not a directory: {$this->loadPath}");
         }
@@ -57,17 +64,14 @@ class RunPodFileManager
         );
 
         foreach ($files as $file) {
-            if ($file->isFile()) {
-                $this->syncFrom($file->getPathname());
-            }
+            $this->syncFrom($file->getPathname());
         }
 
         return $this;
     }
 
     /**
-     * Get the storage path for a file (e.g. "data/doc.pdf").
-     * Use when calling pod APIs that expect the path as seen on the mounted volume.
+     * Storage path for pod APIs (e.g. data/doc.pdf).
      */
     public function path(string $path): string
     {
@@ -76,6 +80,10 @@ class RunPodFileManager
 
     public function ensure(string $path): self
     {
+        if ($this->isLocal) {
+            return $this;
+        }
+
         $localPath = $this->resolveLocalPath($path);
 
         if (! is_file($localPath)) {
@@ -83,7 +91,7 @@ class RunPodFileManager
         }
 
         $relativePath = $this->relativeToLoadPath($localPath);
-        $remotePath = $this->remotePrefix.'/'.$relativePath;
+        $remotePath = $this->remotePath($relativePath);
 
         if (! $this->disk->exists($remotePath)) {
             $this->disk->put($remotePath, file_get_contents($localPath));

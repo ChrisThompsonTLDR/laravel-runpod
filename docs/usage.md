@@ -2,7 +2,7 @@
 
 ## RunPod API Client
 
-Inject or resolve `RunPodClient` to call the RunPod REST API directly:
+Inject or resolve `RunPodClient` to call the RunPod REST API directly. If `RUNPOD_API_KEY` is not configured (null or empty), the client throws `RunPodApiKeyNotConfiguredException` on the first API call.
 
 ```php
 use ChrisThompsonTLDR\LaravelRunPod\RunPodClient;
@@ -47,13 +47,13 @@ Use the `RunPod` class (or facade) for a higher-level workflow combining pod lif
 ```php
 use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 
-$runPod = app(RunPod::class)->for(PymupdfJob::class);
+$runPod = app(RunPod::class)->for(ExampleJob::class);
 
 // File operations via the configured S3 disk
 $runPod->disk('runpod')->ensure($filename);
 
 // Start a named pod instance
-$pod = $runPod->instance('pymupdf')->start();
+$pod = $runPod->instance('example')->start();
 $url = $pod['url'];
 ```
 
@@ -61,7 +61,7 @@ With the facade:
 
 ```php
 RunPod::for(self::class)->disk('runpod')->ensure($filename);
-$pod = RunPod::instance('pymupdf')->start();
+$pod = RunPod::instance('example')->start();
 ```
 
 ### Methods
@@ -104,7 +104,7 @@ $fm->exists('data/file.pdf');
 $path = $fm->path('doc.pdf');
 ```
 
-Files under `remote_prefix` (default `data`) map to `/workspace/data/` on the pod.
+Files under the instance's `remote_disk.prefix` (e.g. `data`) map to `/workspace/data/` on the pod.
 
 ## RefreshesRunPod Trait
 
@@ -114,18 +114,18 @@ For queued jobs that use RunPod, use the `RefreshesRunPod` trait to keep the pod
 use ChrisThompsonTLDR\LaravelRunPod\Concerns\RefreshesRunPod;
 use ChrisThompsonTLDR\LaravelRunPod\RunPod;
 
-class PymupdfJob implements ShouldQueue
+class ExampleJob implements ShouldQueue
 {
     use RefreshesRunPod;
 
     protected function runPodInstance(): string
     {
-        return 'pymupdf';
+        return 'example';
     }
 
     public function handle(): void
     {
-        $pod = RunPod::instance('pymupdf')->start();
+        $pod = RunPod::instance('example')->start();
 
         $this->withRunPodRefresh(function () use ($pod) {
             $response = Http::post($pod['url'] . '/extract', [...]);
@@ -139,30 +139,25 @@ class PymupdfJob implements ShouldQueue
 
 ## Named Instances
 
-Configure multiple pod/serverless instances in `config/runpod.php` under `instances`. Each has its own state file, prune schedule, and can override `image_name`, `network_volume_id`, etc.
+Configure multiple pod/serverless instances in `config/runpod.php` under `instances`. Each has its own state file, prune schedule, `image_name`, `name`, etc.
 
 ```php
 'instances' => [
-    'pymupdf' => [
+    'example' => [
         'type' => 'pod',
         'prune_schedule' => 'everyFiveMinutes',
-        'pod' => [
-            'image_name' => env('RUNPOD_PYMUPDF_IMAGE'),
-            'network_volume_id' => env('RUNPOD_PYMUPDF_NETWORK_VOLUME_ID'),
-            'gpu_count' => 0,
-            'name' => 'eyejay-pymupdf',
-            // ...
-        ],
+        'image_name' => 'nginx:alpine',
+        'name' => 'runpod-example',
+        'spec' => ['cpu5c-16-32', 'cpu5g-16-32'],
+        // ...
     ],
     'docling' => [
         'type' => 'pod',
         'prune_schedule' => 'everyFiveMinutes',
-        'pod' => [
-            'image_name' => env('RUNPOD_DOCLING_IMAGE'),
-            'gpu_count' => 1,
-            'name' => 'eyejay-docling',
-            // ...
-        ],
+        'image_name' => 'runpod/docling',
+        'gpu_count' => 1,
+        'name' => 'eyejay-docling',
+        // ...
     ],
 ],
 ```
@@ -170,23 +165,23 @@ Configure multiple pod/serverless instances in `config/runpod.php` under `instan
 Usage:
 
 ```bash
-php artisan runpod:start pymupdf
+php artisan runpod:start example
 php artisan runpod:start docling
-php artisan runpod:prune pymupdf
+php artisan runpod:prune example
 ```
 
 In code:
 
 ```php
-RunPod::instance('pymupdf')->start();
+RunPod::instance('example')->start();
 RunPod::instance('docling')->start();
 ```
 
-## Merged Pod Config
+## Instance Config
 
-To get the merged pod config for an instance (base + instance overrides):
+To get the instance config (including pod params):
 
 ```php
-$config = RunPod::mergedPodConfigForInstance('pymupdf');
+$config = RunPod::mergedPodConfigForInstance('example');
 $inactivityMinutes = $config['inactivity_minutes'];
 ```

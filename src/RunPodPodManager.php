@@ -39,6 +39,11 @@ class RunPodPodManager
         $this->podConfig = array_merge($base, $podConfig);
     }
 
+    public function isLocal(): bool
+    {
+        return (bool) ($this->podConfig['local'] ?? false);
+    }
+
     public function ensurePod(): ?array
     {
         $state = $this->readState();
@@ -56,6 +61,7 @@ class RunPodPodManager
 
                     return $result;
                 }
+
                 // Pod is RUNNING but health check failed (may still be starting). Return success.
                 return $result;
             }
@@ -78,6 +84,7 @@ class RunPodPodManager
                     if ($this->verifyPodReachable($url)) {
                         return $result;
                     }
+
                     // Pod is RUNNING but health check failed. Return success anyway.
                     return $result;
                 }

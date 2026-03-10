@@ -8,27 +8,36 @@ php artisan vendor:publish --tag=laravel-runpod-config
 
 ## Top-Level Options
 
-- **disk** (string, default: `runpod`) — Laravel filesystem disk name for S3 storage
-- **load_path** (string, default: `storage_path('app/runpod')`) — Local directory to sync files from
-- **remote_prefix** (string, default: `data`) — S3 prefix; maps to `/workspace/data/` on pods
 - **api_key** (string, default: `env('RUNPOD_API_KEY')`) — RunPod REST API key
-- **state_file** (string, default: `storage_path('app/runpod-pod-state.json')`) — Base path for pod state JSON
-- **stats_file** (string, default: `storage_path('app/runpod-stats.json')`) — Path for dashboard stats JSON
-- **prune_schedule** (string, default: `everyFiveMinutes`) — Default prune frequency when no instances
 
-## S3 Configuration
+## Dashboard
 
 ```php
-'s3' => [
+'dashboard' => [
+    'middleware' => ['web', 'can:viewRunpod'],
+],
+```
+
+- **middleware** (array) — Middleware applied to the web dashboard routes. Default includes `web` and `can:viewRunpod`. The `viewRunpod` gate is registered by `RunPodServiceProvider`; override it in `AuthServiceProvider` to customize access (e.g. allow only admins in production).
+
+## Disk Configuration (per instance)
+
+- **local_disk** — Laravel disk name when in local mode (e.g. `runpod_local`)
+- **remote_disk** — S3 config for cloud storage. Keys: `disk_name`, `prefix` (folder under volume root, default `data`; maps to `/workspace/{prefix}/` on pods), `key`, `secret`, `region`, `bucket`, `endpoint`:
+
+```php
+'remote_disk' => [
+    'disk_name' => 'runpod',
+    'prefix' => 'data',
     'key' => env('RUNPOD_S3_ACCESS_KEY'),
     'secret' => env('RUNPOD_S3_SECRET_KEY'),
     'region' => env('RUNPOD_S3_REGION', 'US-MD-1'),
-    'bucket' => env('RUNPOD_NETWORK_VOLUME_ID'),  // Network volume ID = S3 bucket
+    'bucket' => env('RUNPOD_NETWORK_VOLUME_ID'),
     'endpoint' => env('RUNPOD_S3_ENDPOINT', 'https://s3api-us-md-1.runpod.io'),
 ],
 ```
 
-The `runpod` disk is only registered when `key`, `secret`, and `bucket` are all non-empty. Use your network volume ID as the bucket.
+The disk is only registered when `key`, `secret`, and `bucket` are all non-empty. Local instances use `local_disk` and do not need `remote_disk`.
 
 ## Guardrails
 
@@ -55,72 +64,48 @@ The `runpod` disk is only registered when `key`, `secret`, and `bucket` are all 
 
 Set limits to `0` to disable that check. See [Guardrails](guardrails.md) for details.
 
-## Default Pod Config
-
-Used as fallback when instance config omits keys:
-
-```php
-'pod' => [
-    'inactivity_minutes' => 2,
-    'gpu_type_id' => 'NVIDIA GeForce RTX 4090',
-    'gpu_count' => 0,
-    'volume_in_gb' => 50,
-    'container_disk_in_gb' => 50,
-    'min_vcpu_count' => 2,
-    'min_memory_in_gb' => 15,
-],
-```
-
 ## Instances
 
-Named pod/serverless instances live under `instances`:
+Named instances live under `instances`. Each has `type` (pod|serverless|local), storage config, and pod params:
 
 ```php
 'instances' => [
-    'pymupdf' => [
+    'example' => [
         'type' => 'pod',
+        'load_path' => storage_path('app/runpod'),
         'prune_schedule' => 'everyFiveMinutes',
-        'pod' => [
-            'inactivity_minutes' => 2,
-            'gpu_count' => 0,
-            'image_name' => env('RUNPOD_PYMUPDF_IMAGE', env('RUNPOD_POD_IMAGE')),
-            'network_volume_id' => env('RUNPOD_PYMUPDF_NETWORK_VOLUME_ID', env('RUNPOD_NETWORK_VOLUME_ID')),
-            'name' => env('RUNPOD_PYMUPDF_POD_NAME', 'eyejay-pymupdf'),
-            'ports' => '8000/http',
-            'volume_mount_path' => '/workspace',
-            'env' => [
-                ['key' => 'PYMUPDF_DATA_DIR', 'value' => '/workspace'],
-            ],
-        ],
+        'inactivity_minutes' => 2,
+        'spec' => ['cpu5c-16-32', 'cpu5g-16-32'],
+        'image_name' => 'nginx:alpine',
+        'name' => 'runpod-example',
+        'ports' => '80/http',
     ],
 ],
 ```
 
 ### Instance Options
 
-- **type** (string) — `pod` or `serverless`
-- **prune_schedule** (string) — Laravel schedule method (e.g. `everyFiveMinutes`)
-- **state_file** (string) — Override state file path for this instance
-- **load_path** (string) — Override load path for file sync
-- **remote_prefix** (string) — Override S3 prefix
-- **pod** (array) — Pod creation parameters (merged with `config/runpod.pod`)
+- **type** (string) — `pod`, `serverless`, or `local`. Use `local` for local Docker (no RunPod API). See [Local Docker](local-docker.md).
+- **load_path** (string) — Local directory to sync files from (e.g. `storage_path('app/runpod')`)
+- **local_disk** (string) — Disk name when `type` is `local` (e.g. `runpod_local`)
+- **remote_disk** (array) — S3 config: `disk_name`, `prefix`, `key`, `secret`, `region`, `bucket`, `endpoint`
+- **local_url** (string) — URL for the local pod when `type` is `local` (e.g. `http://example:80` or `http://localhost:80`)
+- **prune_schedule** (string) — Prune frequency for pods (e.g. `everyFiveMinutes`, default when omitted)
+- **inactivity_minutes** (int) — Minutes idle before prune (default 2)
+- **state_file** (string) — Path for pod state JSON (default: `storage_path('app/runpod-pod-state-{instance}.json')`)
+- **endpoint_state_file** (string) — Path for serverless endpoint state JSON (default: `storage_path('app/runpod-endpoint-state-{instance}.json')`)
+- **stats_file** (string) — Path for dashboard stats JSON (default: `storage_path('app/runpod-stats-{instance}.json')`)
 
-### Pod Creation Parameters
+### Pod Parameters (on instance)
 
+- **spec** (array) — CPU specs to try, e.g. `['cpu5c-16-32', 'cpu5g-16-32']`. Use `['*']` for any flavor. For GPU: `gpu_type_id`, `gpu_count`, `volume_in_gb`.
 - **image_name** (string) — Docker image (required)
-- **network_volume_id** (string) — Attach this network volume
 - **name** (string) — Pod name in RunPod
-- **gpu_count** (int) — Number of GPUs (0 = CPU)
-- **gpu_type_id** (string) — GPU type when gpu_count > 0
-- **volume_in_gb** (int) — Ephemeral volume size
-- **container_disk_in_gb** (int) — Container disk size
+- **ports** (string) — Comma-separated, e.g. `80/http,22/tcp`
+- **network_volume_id** (string) — Attach this network volume
 - **volume_mount_path** (string) — Mount path (e.g. `/workspace`)
-- **ports** (string) — Comma-separated, e.g. `8000/http,22/tcp`
 - **env** (array) — `[['key' => 'X', 'value' => 'Y'], ...]`
-- **inactivity_minutes** (int) — Minutes idle before prune
-- **data_center_ids** (array) — Preferred datacenters
-- **health_path** (string) — Health check path (e.g. `/health`)
 
 ### State and Stats Paths
 
-Per-instance state files default to `{state_file}-{instance}.json`. Stats are written per instance to the shared `stats_file` with instance keys.
+Stats are written per instance to each instance's `stats_file`.

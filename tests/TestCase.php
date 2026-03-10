@@ -2,14 +2,14 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod\Tests;
 
-use ChrisThompsonTLDR\LaravelRunPod\LaravelRunPodServiceProvider;
+use ChrisThompsonTLDR\LaravelRunPod\RunPodServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
 {
     protected function getPackageProviders($app): array
     {
-        return [LaravelRunPodServiceProvider::class];
+        return [RunPodServiceProvider::class];
     }
 
     protected function getEnvironmentSetUp($app): void

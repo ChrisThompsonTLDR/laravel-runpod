@@ -2,24 +2,15 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod;
 
+use ChrisThompsonTLDR\LaravelRunPod\Exceptions\RunPodApiKeyNotConfiguredException;
 use Illuminate\Support\Facades\Http;
 
 class RunPodGraphQLClient
 {
     protected string $endpoint = 'https://api.runpod.io/graphql';
 
-    public function __construct(
-        protected string $apiKey
-    ) {}
-
-    /**
-     * Fetch pod telemetry (CPU, GPU, memory utilization) via GraphQL.
-     * Returns latestTelemetry data or null if pod not found or not running.
-     */
-    public function getPodTelemetry(string $podId): ?array
-    {
-        $query = <<<'GRAPHQL'
-        query pod($input: PodFilter) {
+    private const POD_TELEMETRY_QUERY = <<<'GRAPHQL'
+query pod($input: PodFilter) {
   pod(input: $input) {
     id
     name
@@ -48,28 +39,32 @@ class RunPodGraphQLClient
 }
 GRAPHQL;
 
+    public function __construct(
+        protected string $apiKey
+    ) {}
+
+    /**
+     * Pod telemetry (CPU, GPU, memory). Returns null if not found or not running.
+     */
+    public function getPodTelemetry(string $podId): ?array
+    {
+        if ($this->apiKey === '') {
+            throw new RunPodApiKeyNotConfiguredException;
+        }
+
         $response = Http::withToken($this->apiKey)
             ->acceptJson()
-            ->contentType('application/json')
             ->post($this->endpoint, [
-                'query' => $query,
-                'variables' => [
-                    'input' => ['podId' => $podId],
-                ],
+                'query' => self::POD_TELEMETRY_QUERY,
+                'variables' => ['input' => ['podId' => $podId]],
             ]);
 
         if (! $response->successful()) {
             return null;
         }
 
-        $data = $response->json();
-        $pod = $data['data']['pod'] ?? null;
-
-        if (! $pod) {
-            return null;
-        }
-
-        $telemetry = $pod['latestTelemetry'] ?? null;
+        $pod = $response->json('data.pod');
+        $telemetry = is_array($pod) ? ($pod['latestTelemetry'] ?? null) : null;
 
         return is_array($telemetry) ? $telemetry : null;
     }

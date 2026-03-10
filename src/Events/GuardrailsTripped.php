@@ -2,13 +2,16 @@
 
 namespace ChrisThompsonTLDR\LaravelRunPod\Events;
 
-use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Queue\SerializesModels;
 
+/**
+ * Dispatched when a guardrail limit is exceeded.
+ *
+ * Contains no models and is not broadcast, so only Dispatchable is needed.
+ */
 class GuardrailsTripped
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable;
 
     public function __construct(
         public string $service,

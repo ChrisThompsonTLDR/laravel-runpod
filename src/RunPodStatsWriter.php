@@ -6,20 +6,12 @@ use Carbon\Carbon;
 
 class RunPodStatsWriter
 {
-    public function __construct(
-        protected ?string $basePath = null
-    ) {
-        $this->basePath = $basePath ?? config('runpod.stats_file', storage_path('app/runpod-stats.json'));
-    }
-
     /**
-     * Write stats for an instance. Merges with existing, computes time_until_kill, writes JSON.
-     *
-     * @param  int|null  $inactivityMinutes  Instance-specific value; falls back to config when null
+     * @param  int|null  $inactivityMinutes  Default: 2
      */
     public function write(string $instance, array $pod, ?array $telemetry, ?string $lastRunAt, ?int $inactivityMinutes = null): void
     {
-        $inactivityMinutes = $inactivityMinutes ?? config('runpod.pod.inactivity_minutes', 2);
+        $inactivityMinutes = $inactivityMinutes ?? 2;
         $timeUntilKill = $this->computeTimeUntilKill($lastRunAt, $inactivityMinutes);
 
         $data = [
@@ -43,9 +35,6 @@ class RunPodStatsWriter
         rename($tmp, $path);
     }
 
-    /**
-     * Flush stats file(s). Pass instance to flush one, or null to flush all.
-     */
     public function flush(?string $instance = null): void
     {
         if ($instance !== null) {
@@ -57,44 +46,29 @@ class RunPodStatsWriter
             return;
         }
 
-        $baseDir = dirname($this->basePath);
-        $baseName = basename($this->basePath, '.json');
-        $glob = $baseDir.DIRECTORY_SEPARATOR.$baseName.'*.json';
-
-        foreach (glob($glob) as $path) {
-            if (is_file($path)) {
+        foreach (array_keys(config('runpod.instances', [])) as $inst) {
+            $path = $this->pathForInstance($inst);
+            if (file_exists($path)) {
                 unlink($path);
             }
         }
     }
 
-    /**
-     * Read stats. Pass instance to read one, or null to read default/aggregate.
-     */
     public function read(?string $instance = null): ?array
     {
-        if ($instance !== null) {
-            $path = $this->pathForInstance($instance);
-            if (! file_exists($path)) {
-                return null;
-            }
-            $data = json_decode(file_get_contents($path), true);
-
-            return is_array($data) ? $data : null;
+        if ($instance === null) {
+            return null;
         }
 
-        if (file_exists($this->basePath)) {
-            $data = json_decode(file_get_contents($this->basePath), true);
-
-            return is_array($data) ? $data : null;
+        $path = $this->pathForInstance($instance);
+        if (! file_exists($path)) {
+            return null;
         }
+        $data = json_decode(file_get_contents($path), true);
 
-        return null;
+        return is_array($data) ? $data : null;
     }
 
-    /**
-     * Compute time until prune as hh:mm:ss. Returns "00:00:00" when past threshold.
-     */
     protected function computeTimeUntilKill(?string $lastRunAt, int $inactivityMinutes): string
     {
         if (! $lastRunAt) {
@@ -110,7 +84,7 @@ class RunPodStatsWriter
                 return '00:00:00';
             }
 
-            $diffSeconds = $killAt->diffInSeconds($now);
+            $diffSeconds = $now->diffInSeconds($killAt);
             $hours = (int) floor($diffSeconds / 3600);
             $minutes = (int) floor(($diffSeconds % 3600) / 60);
             $seconds = (int) ($diffSeconds % 60);
@@ -123,13 +97,15 @@ class RunPodStatsWriter
 
     protected function pathForInstance(string $instance): string
     {
-        $base = $this->basePath;
-        if (str_ends_with($base, '.json')) {
-            $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $instance);
+        $config = config("runpod.instances.{$instance}", []);
+        if (! empty($config['stats_file'])) {
+            $path = $config['stats_file'];
 
-            return preg_replace('/\.json$/', "-{$safe}.json", $base);
+            return str_starts_with($path, '/') ? $path : base_path($path);
         }
 
-        return $base;
+        $safe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $instance);
+
+        return storage_path("app/runpod-stats-{$safe}.json");
     }
 }

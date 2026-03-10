@@ -4,6 +4,7 @@ namespace ChrisThompsonTLDR\LaravelRunPod\Console;
 
 use ChrisThompsonTLDR\LaravelRunPod\Exceptions\RunPodApiKeyNotConfiguredException;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodClient;
+use ChrisThompsonTLDR\LaravelRunPod\RunPodEndpointState;
 use ChrisThompsonTLDR\LaravelRunPod\RunPodPodClient;
 use Illuminate\Console\Command;
 
@@ -12,6 +13,7 @@ class DeployEndpointCommand extends Command
     protected $signature = 'runpod:deploy-endpoint
                             {--config= : Path to serverless config JSON (template + endpoint)}
                             {--instance= : Use serverless_config_path from this instance}
+                            {--template-only : Only patch template and skip endpoint creation}
                             {--force : Recreate template/endpoint if they exist}';
 
     protected $description = 'Deploy a serverless endpoint from a config JSON (creates template + endpoint)';
@@ -59,8 +61,17 @@ class DeployEndpointCommand extends Command
             $this->warn("Template '{$templateName}' exists. Use RunPod dashboard to delete before --force recreate.");
             $templateId = $template['id'];
         } elseif ($template) {
-            $this->info("Template '{$templateName}' exists (id: {$template['id']}).");
             $templateId = $template['id'];
+            $this->info("Template '{$templateName}' exists (id: {$templateId}). Patching imageName and config from config file.");
+            $patchInput = $this->mapTemplatePatchInput($templateDef);
+            if ($patchInput !== []) {
+                $updated = $client->updateTemplate($templateId, $patchInput);
+                if ($updated) {
+                    $this->info('Template patched successfully.');
+                } else {
+                    $this->warn('Template patch failed: '.($client->getLastError() ?: 'unknown'));
+                }
+            }
         } else {
             $templateInput = $this->mapTemplateInput($templateDef);
             $created = $client->createTemplate($templateInput);
@@ -73,14 +84,23 @@ class DeployEndpointCommand extends Command
             $this->info("Created template '{$templateName}' (id: {$templateId}).");
         }
 
+        if ($this->option('template-only')) {
+            $this->info('Template updated (--template-only). Skipping endpoint creation.');
+
+            return self::SUCCESS;
+        }
+
         // 2. Find or create endpoint
         $existing = $podClient->getServerlessEndpointByName($endpointName);
+        $url = null;
         if ($existing && $this->option('force')) {
             $this->warn("Endpoint '{$endpointName}' exists. Use RunPod dashboard to delete before --force recreate.");
             $endpointId = $existing['endpoint_id'];
+            $url = $existing['url'] ?: "https://api.runpod.ai/v2/{$endpointId}/runsync";
         } elseif ($existing) {
             $this->info("Endpoint '{$endpointName}' exists (id: {$existing['endpoint_id']}).");
             $endpointId = $existing['endpoint_id'];
+            $url = $existing['url'] ?: "https://api.runpod.ai/v2/{$endpointId}/runsync";
         } else {
             $endpointInput = $this->mapEndpointInput($endpointDef, $templateId);
             $created = $client->createEndpoint($endpointInput);
@@ -90,12 +110,18 @@ class DeployEndpointCommand extends Command
                 return self::FAILURE;
             }
             $endpointId = $created['id'];
+            $url = "https://api.runpod.ai/v2/{$endpointId}/runsync";
             $this->info("Created endpoint '{$endpointName}' (id: {$endpointId}).");
         }
 
-        $this->newLine();
-        $this->line('Add to .env:');
-        $this->line("<info>RUNPOD_GRANITE_ENDPOINT_ID={$endpointId}</info>");
+        $instance = $this->option('instance') ?: $endpointName;
+        $endpointState = $this->laravel->make(RunPodEndpointState::class);
+        $endpointState->write($instance, [
+            'endpoint_id' => $endpointId,
+            'url' => $url,
+            'endpoint_name' => $endpointName,
+        ]);
+        $this->info("Stored endpoint state for instance '{$instance}'.");
 
         return self::SUCCESS;
     }
@@ -115,6 +141,32 @@ class DeployEndpointCommand extends Command
         }
 
         return null;
+    }
+
+    /**
+     * Map config JSON "template" to RunPod updateTemplate (PATCH) input.
+     * PATCH accepts: imageName, name, containerDiskInGb, env, readme.
+     */
+    protected function mapTemplatePatchInput(array $def): array
+    {
+        $input = [];
+        if (isset($def['imageName'])) {
+            $input['imageName'] = (string) $def['imageName'];
+        }
+        if (isset($def['name'])) {
+            $input['name'] = (string) $def['name'];
+        }
+        if (isset($def['containerDiskInGb'])) {
+            $input['containerDiskInGb'] = (int) $def['containerDiskInGb'];
+        }
+        if (! empty($def['env']) && is_array($def['env'])) {
+            $input['env'] = $def['env'];
+        }
+        if (isset($def['readme'])) {
+            $input['readme'] = (string) $def['readme'];
+        }
+
+        return $input;
     }
 
     /**
@@ -163,6 +215,9 @@ class DeployEndpointCommand extends Command
         }
         if (isset($def['workersMax'])) {
             $input['workersMax'] = (int) $def['workersMax'];
+        }
+        if (isset($def['dataCenterIds']) && is_array($def['dataCenterIds'])) {
+            $input['dataCenterIds'] = $def['dataCenterIds'];
         }
 
         return $input;
